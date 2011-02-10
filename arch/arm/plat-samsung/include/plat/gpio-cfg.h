@@ -108,14 +108,6 @@ extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
  */
 extern unsigned s3c_gpio_getcfg(unsigned int pin);
 
-#define S3C_GPIO_SLP_OUT0	((__force s3c_gpio_pull_t)0x00)
-#define S3C_GPIO_SLP_OUT1	((__force s3c_gpio_pull_t)0x01)
-#define S3C_GPIO_SLP_INPUT	((__force s3c_gpio_pull_t)0x02)
-#define S3C_GPIO_SLP_PREV	((__force s3c_gpio_pull_t)0x03)
-
-extern int s3c_gpio_slp_cfgpin(unsigned int pin, unsigned int to);
-extern s3c_gpio_pull_t s3c_gpio_get_slp_cfgpin(unsigned int pin);
-
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors
@@ -139,7 +131,6 @@ extern s3c_gpio_pull_t s3c_gpio_get_slp_cfgpin(unsigned int pin);
  * @pull is one of S3C_GPIO_PULL_NONE, S3C_GPIO_PULL_DOWN or S3C_GPIO_PULL_UP.
 */
 extern int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull);
-extern int s3c_gpio_slp_setpull_updown(unsigned int pin, s3c_gpio_pull_t pull);
 
 /**
  * s3c_gpio_getpull() - get the pull resistor state of a gpio pin
@@ -148,7 +139,6 @@ extern int s3c_gpio_slp_setpull_updown(unsigned int pin, s3c_gpio_pull_t pull);
  * Read the pull resistor value for the specified pin.
 */
 extern s3c_gpio_pull_t s3c_gpio_getpull(unsigned int pin);
-extern s3c_gpio_pull_t s3c_gpio_slp_getpull_updown(unsigned int pin);
 
 /* Define values for the drvstr available for each gpio pin.
  *

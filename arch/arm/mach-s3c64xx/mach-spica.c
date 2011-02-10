@@ -52,7 +52,7 @@
 #include <mach/regs-srom.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
-#include <plat/gpio-cfg.h>
+#include <mach/gpio-cfg.h>
 
 #include <mach/s3c6410.h>
 #include <mach/spica.h>
@@ -781,56 +781,6 @@ static void spica_switch_init(void)
 		pr_err("Failed to create device file(%s)!\n", dev_attr_uart_sel.attr.name);
 };
 
-static void __init spica_machine_init(void)
-{
-	spica_init_gpio();
-
-	s3c_i2c0_set_platdata(NULL);
-	s3c_i2c1_set_platdata(NULL);
-
-#ifdef CONFIG_S3C64XX_ADCTS
-//	s3c_adcts_set_platdata (&s3c_adcts_cfgs);
-#endif
-#if 0/*def CONFIG_S3C_ADC*/
-//	s3c_adc_set_platdata(&s3c_adc_platform);
-#endif
-	
-	s3c_fb_set_platdata(&spica_lcd_pdata);
-
-	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
-	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
-
-	platform_add_devices(spica_devices, ARRAY_SIZE(spica_devices));
-#ifdef CONFIG_ANDROID_PMEM
-	spica_add_mem_devices();
-#endif
-	//s3c6410_pm_init();
-
-	//spica_set_qos();
-
-	//pm_power_off = spica_pm_power_off;
-	
-	register_reboot_notifier(&spica_reboot_notifier);
-
-	spica_switch_init();
-
-	//ftm_enable_usb_sw = spica_ftm_enable_usb_sw;
-}
-
-#define MACH_TYPE_SPICA	MACH_TYPE_SMDK6410
-MACHINE_START(SPICA, "SPICA")
-	/* Maintainer: Ben Dooks <ben@fluff.org> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
-
-	.init_irq	= s3c6410_init_irq,
-	.fixup		= spica_fixup,
-	.map_io		= spica_map_io,
-	.init_machine	= spica_machine_init,
-	.timer		= &s3c24xx_timer,
-MACHINE_END
-
 #if 0/* defined(CONFIG_RTC_DRV_S3C)*/
 /* RTC common Function for samsung APs*/
 unsigned int s3c_rtc_set_bit_byte(void __iomem *base, uint offset, uint val)
@@ -983,7 +933,7 @@ void s3c_reset_uart_cfg_gpio(unsigned char port)
 }
 EXPORT_SYMBOL(s3c_reset_uart_cfg_gpio);
 
-static int spica_gpio_table[][6] = {
+static struct s3c_gpio_config spica_gpio_table[] = {
 	/*
 	 * OFF PART
 	 */
@@ -1181,44 +1131,7 @@ static int spica_gpio_table[][6] = {
 	{ S3C64XX_GPQ(6), 1, GPIO_LEVEL_LOW, S3C_GPIO_PULL_NONE, S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE },
 };
 
-static void spica_init_gpio(void)
-{
-	u32 i, gpio;
-	int (*gpio_table)[6] = spica_gpio_table;
-	int array_size = ARRAY_SIZE(spica_gpio_table);
-
-	pr_debug("%s: ++\n", __func__);
-	for (i = 0; i < array_size; i++) {
-		gpio = gpio_table[i][0];
-		if (gpio < S3C64XX_GPIO_ALIVE_PART_BASE) { /* Off Part */
-			pr_debug("%s: Off gpio=%d,%d\n", __func__, gpio, 
-					S3C64XX_GPIO_ALIVE_PART_BASE);
-			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(gpio_table[i][1]));
-			s3c_gpio_setpull(gpio, gpio_table[i][3]);
-			s3c_gpio_slp_cfgpin(gpio, gpio_table[i][4]);
-			s3c_gpio_slp_setpull_updown(gpio, gpio_table[i][5]);
-			if (gpio_table[i][2] != GPIO_LEVEL_NONE)
-				gpio_set_value(gpio, gpio_table[i][2]);
-		} else if (gpio < S3C64XX_GPIO_MEM_PART_BASE) { /* Alive Part */
-			pr_debug("%s: Alive gpio=%d\n", __func__, gpio);
-			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(gpio_table[i][1]));
-			s3c_gpio_setpull(gpio, gpio_table[i][3]);
-			if (gpio_table[i][2] != GPIO_LEVEL_NONE)
-				gpio_set_value(gpio, gpio_table[i][2]);
-		} else { /* Memory Part */
-			pr_debug("%s: Memory gpio=%d\n", __func__, gpio);
-			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(gpio_table[i][1]));
-			s3c_gpio_setpull(gpio, gpio_table[i][3]);
-			s3c_gpio_slp_cfgpin(gpio, gpio_table[i][4]);
-			s3c_gpio_slp_setpull_updown(gpio, gpio_table[i][5]);
-			if (gpio_table[i][2] != GPIO_LEVEL_NONE)
-				gpio_set_value(gpio, gpio_table[i][2]);
-		}
-	}
-	pr_debug("%s: --\n", __func__);
-}
-
-static int spica_sleep_gpio_table[][6] = {
+static struct s3c_gpio_config spica_sleep_gpio_table[] = {
 	/*
 	 * ALIVE PART
 	 */
@@ -1299,8 +1212,8 @@ void s3c_config_sleep_gpio(void)
 	int spcon_val;
 
 	check_pmic();
-	s3c_config_gpio_table(ARRAY_SIZE(spica_sleep_gpio_table),
-			spica_sleep_gpio_table);
+	s3c_init_gpio(spica_sleep_gpio_table,
+					ARRAY_SIZE(spica_sleep_gpio_table));
 
 	spcon_val = __raw_readl(S3C64XX_SPCON);
 	spcon_val = spcon_val & (~0xFFEC0000);
@@ -1368,3 +1281,53 @@ void s3c_config_wakeup_source(void)
 	__raw_writel((__raw_readl(S3C_PWR_CFG) & ~(0x1 << 10)), S3C_PWR_CFG);
 }
 EXPORT_SYMBOL(s3c_config_wakeup_source);
+
+static void __init spica_machine_init(void)
+{
+	s3c_init_gpio(spica_gpio_table, ARRAY_SIZE(spica_gpio_table));
+
+	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c1_set_platdata(NULL);
+
+#ifdef CONFIG_S3C64XX_ADCTS
+//	s3c_adcts_set_platdata (&s3c_adcts_cfgs);
+#endif
+#if 0/*def CONFIG_S3C_ADC*/
+//	s3c_adc_set_platdata(&s3c_adc_platform);
+#endif
+
+	s3c_fb_set_platdata(&spica_lcd_pdata);
+
+	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
+	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
+	platform_add_devices(spica_devices, ARRAY_SIZE(spica_devices));
+#ifdef CONFIG_ANDROID_PMEM
+	spica_add_mem_devices();
+#endif
+	//s3c6410_pm_init();
+
+	//spica_set_qos();
+
+	//pm_power_off = spica_pm_power_off;
+
+	register_reboot_notifier(&spica_reboot_notifier);
+
+	spica_switch_init();
+
+	//ftm_enable_usb_sw = spica_ftm_enable_usb_sw;
+}
+
+#define MACH_TYPE_SPICA	MACH_TYPE_SMDK6410
+MACHINE_START(SPICA, "SPICA")
+	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	.phys_io	= S3C_PA_UART & 0xfff00000,
+	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
+	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+
+	.init_irq	= s3c6410_init_irq,
+	.fixup		= spica_fixup,
+	.map_io		= spica_map_io,
+	.init_machine	= spica_machine_init,
+	.timer		= &s3c24xx_timer,
+MACHINE_END
