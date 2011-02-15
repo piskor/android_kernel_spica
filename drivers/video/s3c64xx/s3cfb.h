@@ -80,12 +80,7 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define FMT_MHZ				"%ld.%03ld"
 #define PRINT_MHZ(m) 			((m) / MHZ), ((m / 1000) % 1000)
 
-#if 0
 #define S3C_FB_MAX_NUM			5
-#else
-// tom3q: Temporarily, to work around failing memory allocation with more than 2 framebuffers
-#define S3C_FB_MAX_NUM			1
-#endif
 #define FB_MAX_NUM(x, y)		((x) > (y) ? (y) : (x))
 #define S3C_FB_NUM			FB_MAX_NUM(S3C_FB_MAX_NUM, CONFIG_FB_S3C64XX_NUM)
 
