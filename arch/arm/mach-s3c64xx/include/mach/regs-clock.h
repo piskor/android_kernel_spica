@@ -80,6 +80,7 @@
 #define S3C6400_CLKDIV0_ARM_MASK	(0x7 << 0)
 #define S3C6410_CLKDIV0_ARM_MASK	(0xf << 0)
 #define S3C6400_CLKDIV0_ARM_SHIFT	(0)
+#define S3C6410_CLKDIV0_ARM_SHIFT	(0)
 
 /* HCLK GATE Registers */
 #define S3C_CLKCON_HCLK_3DSE	(1<<31)
@@ -175,6 +176,11 @@
 #define S3C_CLKCON_SCLK_MFC		(1<<3)
 #define S3C_CLKCON_SCLK_CAM		(1<<2)
 #define S3C_CLKCON_SCLK_JPEG		(1<<1)
+
+/* OTHERS Register */
+#define S3C_OTHERS_USB_SIG_MASK		(1<<16)
+#define S3C_OTHERS_SYNCMUXSEL_SYNC	(1<<6)
+#define S3C_OTHERS_SYNCMODE_SYNC	(1<<7)
 
 /* CLKSRC */
 

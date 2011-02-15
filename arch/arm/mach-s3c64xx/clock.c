@@ -588,6 +588,17 @@ static struct clksrc_sources clkset_camif = {
 	.nr_sources	= ARRAY_SIZE(clkset_camif_list),
 };
 
+static struct clk *clkset_lcd_list[] = {
+	[0] = &clk_mout_epll.clk,
+	[1] = &clk_dout_mpll,
+	[2] = &clk_fin_epll,
+};
+
+static struct clksrc_sources clkset_lcd = {
+	.sources	= clkset_lcd_list,
+	.nr_sources	= ARRAY_SIZE(clkset_lcd_list),
+};
+
 static struct clksrc_clk clksrcs[] = {
 	{
 		.clk	= {
@@ -711,6 +722,17 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_src	= { .reg = NULL, .shift = 0, .size = 0  },
 		.sources	= &clkset_camif,
 	},
+	{
+		.clk	= 	{
+			.name		= "lcd_sclk",
+			.id		= -1,
+			.ctrlbit	= S3C_CLKCON_SCLK_LCD,
+			.enable		= s3c64xx_sclk_ctrl,
+		},
+		.reg_div	= { .reg = S3C_CLK_DIV1, .shift = 12, .size = 4 },
+		.reg_src	= { .reg = S3C_CLK_SRC, .shift = 26, .size = 2 },
+		.sources	= &clkset_lcd,
+	}
 };
 
 /* Clock initialisation code */
@@ -757,12 +779,23 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	mpll = s3c6400_get_pll(xtal, __raw_readl(S3C_MPLL_CON));
 	apll = s3c6400_get_pll(xtal, __raw_readl(S3C_APLL_CON));
 
-	fclk = mpll;
+#ifdef CONFIG_CPU_S3C6410
+	fclk = apll / GET_DIV(clkdiv0, S3C6410_CLKDIV0_ARM);
+#else
+	fclk = apll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_ARM);
+#endif
 
 	printk(KERN_INFO "S3C64XX: PLL settings, A=%ld, M=%ld, E=%ld\n",
 	       apll, mpll, epll);
 
-	hclk2 = mpll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+	if(__raw_readl(S3C_OTHERS) & S3C_OTHERS_SYNCMUXSEL_SYNC) {
+		/* Synchronous mode */
+		hclk2 = apll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+	} else {
+		/* Asynchronous mode */
+		hclk2 = mpll / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK2);
+	}
+
 	hclk = hclk2 / GET_DIV(clkdiv0, S3C6400_CLKDIV0_HCLK);
 	pclk = hclk2 / GET_DIV(clkdiv0, S3C6400_CLKDIV0_PCLK);
 
