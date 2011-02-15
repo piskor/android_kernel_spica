@@ -600,7 +600,7 @@ void s3cfb_init_hw(void)
 
 void s3cfb_display_logo(int win_num)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[0];
+	struct s3c_fb_info *fbi = &s3c_fb_info[0];
 	u8 *logo_virt_buf;
 	
 	logo_virt_buf = ioremap_nocache(LOGO_MEM_BASE, LOGO_MEM_SIZE);
@@ -620,7 +620,7 @@ static struct timer_list progress_timer;
 
 static void progress_timer_handler(unsigned long data)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[1];
+	struct s3c_fb_info *fbi = &s3c_fb_info[1];
 	unsigned short *bar_src, *bar_dst;	
 	int	i, j, p;
 
@@ -652,7 +652,7 @@ static unsigned int old_wincon1;
 
 void s3cfb_start_progress(void)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[1];
+	struct s3c_fb_info *fbi = &s3c_fb_info[1];
 	unsigned short *bg_src, *bg_dst;	
 	int	i, j, p;
 	

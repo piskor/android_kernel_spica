@@ -19,7 +19,7 @@
 
 //#include <linux/i2c/maximi2c.h>
 
-#include <plat/gpio-cfg.h>
+#include <mach/gpio-cfg.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
@@ -66,28 +66,26 @@ EXPORT_SYMBOL(backlight_level);
 void backlight_level_ctrl(s32 value);
 EXPORT_SYMBOL(backlight_level_ctrl);
 
-#define S3C_FB_HFP				10 		/* Front Porch */
-#define S3C_FB_HSW				10 		/* Hsync Width */
-#define S3C_FB_HBP				10 		/* Back Porch */
+#define S3C_FB_HFP		10 	/* Front Porch */
+#define S3C_FB_HSW		10 	/* Hsync Width */
+#define S3C_FB_HBP		10 	/* Back Porch */
+#define S3C_FB_VFP		3 	/* Front Porch */
+#define S3C_FB_VSW		2 	/* Vsync Width */
+#define S3C_FB_VBP		8 	/* Back Porch */
 
-#define S3C_FB_VFP				3 		/* Front Porch */
-#define S3C_FB_VSW				2 		/* Vsync Width */
-#define S3C_FB_VBP				8 		/* Back Porch */
+#define S3C_FB_HRES		320 	/* Horizontal pixel Resolition */
+#define S3C_FB_VRES		480 	/* Vertical pixel Resolution */
 
-#define S3C_FB_HRES				320 	/* Horizon pixel Resolition */
-#define S3C_FB_VRES				480 	/* Vertical pixel Resolution */
+#define S3C_FB_HRES_VIRTUAL     S3C_FB_HRES		/* Horizontal pixel Resolition */
+#define S3C_FB_VRES_VIRTUAL     (S3C_FB_VRES * 2)	/* Vertial pixel Resolution */
 
+#define S3C_FB_HRES_OSD		320	/* Horizon pixel Resolition */
+#define S3C_FB_VRES_OSD		480	/* Vertical pixel Resolution */
 
-#define S3C_FB_HRES_VIRTUAL     S3C_FB_HRES     /* Horizon pixel Resolition */
-#define S3C_FB_VRES_VIRTUAL     (S3C_FB_VRES * 2) 	/* Vertial pixel Resolution */
+#define S3C_FB_HRES_OSD_VIRTUAL S3C_FB_HRES_OSD		/* Horizon pixel Resolition */
+#define S3C_FB_VRES_OSD_VIRTUAL (S3C_FB_VRES_OSD * 2)	/* Vertial pixel Resolution */
 
-#define S3C_FB_HRES_OSD			320		/* Horizon pixel Resolition */
-#define S3C_FB_VRES_OSD			480 	/* Vertial pixel Resolution */
-
-#define S3C_FB_HRES_OSD_VIRTUAL S3C_FB_HRES_OSD     /* Horizon pixel Resolition */
-#define S3C_FB_VRES_OSD_VIRTUAL (S3C_FB_VRES_OSD * 2) 	/* Vertial pixel Resolution */
-
-#define S3C_FB_VFRAME_FREQ      60      /* Frame Rate Frequency */
+#define S3C_FB_VFRAME_FREQ      60	/* Frame Rate Frequency */
 
 #define S3C_FB_PIXEL_CLOCK      (S3C_FB_VFRAME_FREQ * \
                                 (S3C_FB_HFP + S3C_FB_HSW + S3C_FB_HBP + S3C_FB_HRES) * \
@@ -95,76 +93,82 @@ EXPORT_SYMBOL(backlight_level_ctrl);
 
 static void s3cfb_set_fimd_info(void)
 {
-	s3c_fimd.dithmode	= S3C_DITHMODE_RDITHPOS_6BIT |
-				  S3C_DITHMODE_GDITHPOS_6BIT |
-				  S3C_DITHMODE_BDITHPOS_6BIT |
-				  S3C_DITHMODE_DITHERING_ENABLE;
+	s3c_fimd.dithmode	= S3C_DITHMODE_RDITHPOS_6BIT
+				| S3C_DITHMODE_GDITHPOS_6BIT
+				| S3C_DITHMODE_BDITHPOS_6BIT
+				| S3C_DITHMODE_DITHERING_ENABLE;
 
-	s3c_fimd.vidcon1    = S3C_VIDCON1_IVCLK_RISE_EDGE |
-						  S3C_VIDCON1_IHSYNC_INVERT |
-	                      S3C_VIDCON1_IVSYNC_INVERT |
-	                      S3C_VIDCON1_IVDEN_NORMAL;
+	s3c_fimd.vidcon1    	= S3C_VIDCON1_IVCLK_RISE_EDGE
+				| S3C_VIDCON1_IHSYNC_INVERT
+				| S3C_VIDCON1_IVSYNC_INVERT
+				| S3C_VIDCON1_IVDEN_NORMAL;
 
-	s3c_fimd.vidtcon0   = S3C_VIDTCON0_VBPD(S3C_FB_VBP - 1) |
-	                      S3C_VIDTCON0_VFPD(S3C_FB_VFP - 1) |
-	                      S3C_VIDTCON0_VSPW(S3C_FB_VSW - 1);
-	s3c_fimd.vidtcon1   = S3C_VIDTCON1_HBPD(S3C_FB_HBP - 1) |
-	                      S3C_VIDTCON1_HFPD(S3C_FB_HFP - 1) |
-	                      S3C_VIDTCON1_HSPW(S3C_FB_HSW - 1);
-	s3c_fimd.vidtcon2   = S3C_VIDTCON2_LINEVAL(S3C_FB_VRES - 1) |
-	                      S3C_VIDTCON2_HOZVAL(S3C_FB_HRES - 1);
+	s3c_fimd.vidtcon0	= S3C_VIDTCON0_VBPD(S3C_FB_VBP - 1)
+				| S3C_VIDTCON0_VFPD(S3C_FB_VFP - 1)
+				| S3C_VIDTCON0_VSPW(S3C_FB_VSW - 1);
+	s3c_fimd.vidtcon1	= S3C_VIDTCON1_HBPD(S3C_FB_HBP - 1)
+				| S3C_VIDTCON1_HFPD(S3C_FB_HFP - 1)
+				| S3C_VIDTCON1_HSPW(S3C_FB_HSW - 1);
+	s3c_fimd.vidtcon2	= S3C_VIDTCON2_LINEVAL(S3C_FB_VRES - 1)
+				| S3C_VIDTCON2_HOZVAL(S3C_FB_HRES - 1);
 
-	s3c_fimd.vidosd0a   = S3C_VIDOSDxA_OSD_LTX_F(0) |
-	                      S3C_VIDOSDxA_OSD_LTY_F(0);
-	s3c_fimd.vidosd0b   = S3C_VIDOSDxB_OSD_RBX_F(S3C_FB_HRES - 1) |
-	                      S3C_VIDOSDxB_OSD_RBY_F(S3C_FB_VRES - 1);
+	s3c_fimd.vidosd0a	= S3C_VIDOSDxA_OSD_LTX_F(0)
+				| S3C_VIDOSDxA_OSD_LTY_F(0);
+	s3c_fimd.vidosd0b	= S3C_VIDOSDxB_OSD_RBX_F(S3C_FB_HRES - 1)
+				| S3C_VIDOSDxB_OSD_RBY_F(S3C_FB_VRES - 1);
 
-	s3c_fimd.vidosd1a   = S3C_VIDOSDxA_OSD_LTX_F(0) |
-	                      S3C_VIDOSDxA_OSD_LTY_F(0);
-	s3c_fimd.vidosd1b   = S3C_VIDOSDxB_OSD_RBX_F(S3C_FB_HRES_OSD - 1) |
-	                      S3C_VIDOSDxB_OSD_RBY_F(S3C_FB_VRES_OSD - 1);
+	s3c_fimd.vidosd1a	= S3C_VIDOSDxA_OSD_LTX_F(0)
+				| S3C_VIDOSDxA_OSD_LTY_F(0);
+	s3c_fimd.vidosd1b	= S3C_VIDOSDxB_OSD_RBX_F(S3C_FB_HRES_OSD - 1)
+				| S3C_VIDOSDxB_OSD_RBY_F(S3C_FB_VRES_OSD - 1);
 
-	s3c_fimd.width		= 45;
-	s3c_fimd.height 	= 68;
-	s3c_fimd.xres 		= S3C_FB_HRES;
-	s3c_fimd.yres 		= S3C_FB_VRES;
+	s3c_fimd.width			= 45;
+	s3c_fimd.height 		= 68;
+	s3c_fimd.xres 			= S3C_FB_HRES;
+	s3c_fimd.yres 			= S3C_FB_VRES;
 
 #if defined(CONFIG_FB_S3C64XX_VIRTUAL_SCREEN)
-	s3c_fimd.xres_virtual = S3C_FB_HRES_VIRTUAL;
-	s3c_fimd.yres_virtual = S3C_FB_VRES_VIRTUAL;
+	s3c_fimd.xres_virtual		= S3C_FB_HRES_VIRTUAL;
+	s3c_fimd.yres_virtual		= S3C_FB_VRES_VIRTUAL;
+#elif defined(CONFIG_FB_S3C64XX_DOUBLE_BUFFERING)
+	s3c_fimd.xres_virtual		= S3C_FB_HRES;
+	s3c_fimd.yres_virtual		= S3C_FB_VRES * 2;
 #else
-	s3c_fimd.xres_virtual = S3C_FB_HRES;
-	s3c_fimd.yres_virtual = S3C_FB_VRES;
+	s3c_fimd.xres_virtual		= S3C_FB_HRES;
+	s3c_fimd.yres_virtual		= S3C_FB_VRES;
 #endif
 
-	s3c_fimd.osd_width 	= S3C_FB_HRES_OSD;
-	s3c_fimd.osd_height = S3C_FB_VRES_OSD;
-	s3c_fimd.osd_xres 	= S3C_FB_HRES_OSD;
-	s3c_fimd.osd_yres 	= S3C_FB_VRES_OSD;
+	s3c_fimd.osd_width		= S3C_FB_HRES_OSD;
+	s3c_fimd.osd_height		= S3C_FB_VRES_OSD;
+	s3c_fimd.osd_xres		= S3C_FB_HRES_OSD;
+	s3c_fimd.osd_yres		= S3C_FB_VRES_OSD;
 
 #if defined(CONFIG_FB_S3C64XX_VIRTUAL_SCREEN)
-	s3c_fimd.osd_xres_virtual = S3C_FB_HRES_OSD_VIRTUAL;
-	s3c_fimd.osd_yres_virtual = S3C_FB_VRES_OSD_VIRTUAL;
+	s3c_fimd.osd_xres_virtual 	= S3C_FB_HRES_OSD_VIRTUAL;
+	s3c_fimd.osd_yres_virtual 	= S3C_FB_VRES_OSD_VIRTUAL;
+#elif defined(CONFIG_FB_S3C64XX_DOUBLE_BUFFERING)
+	s3c_fimd.osd_xres_virtual 	= S3C_FB_HRES_OSD;
+	s3c_fimd.osd_yres_virtual 	= S3C_FB_VRES_OSD * 2;
 #else
-	s3c_fimd.osd_xres_virtual = S3C_FB_HRES_OSD;
-	s3c_fimd.osd_yres_virtual = S3C_FB_VRES_OSD;
+	s3c_fimd.osd_xres_virtual 	= S3C_FB_HRES_OSD;
+	s3c_fimd.osd_yres_virtual 	= S3C_FB_VRES_OSD;
 #endif
 
 	s3c_fimd.pixclock		= S3C_FB_PIXEL_CLOCK;
 
 	s3c_fimd.hsync_len 		= S3C_FB_HSW;
 	s3c_fimd.vsync_len 		= S3C_FB_VSW;
-	s3c_fimd.left_margin 	= S3C_FB_HFP;
-	s3c_fimd.upper_margin 	= S3C_FB_VFP;
-	s3c_fimd.right_margin 	= S3C_FB_HBP;
-	s3c_fimd.lower_margin 	= S3C_FB_VBP;
+	s3c_fimd.left_margin 		= S3C_FB_HFP;
+	s3c_fimd.upper_margin 		= S3C_FB_VFP;
+	s3c_fimd.right_margin 		= S3C_FB_HBP;
+	s3c_fimd.lower_margin 		= S3C_FB_VBP;
 
-	s3c_fimd.set_lcd_power		 = lcd_power_ctrl;
-	s3c_fimd.set_backlight_power = backlight_power_ctrl;
-	s3c_fimd.set_brightness 	 = backlight_level_ctrl;
+	s3c_fimd.set_lcd_power		= lcd_power_ctrl;
+	s3c_fimd.set_backlight_power	= backlight_power_ctrl;
+	s3c_fimd.set_brightness 	= backlight_level_ctrl;
 
-	s3c_fimd.backlight_min = BACKLIGHT_LEVEL_MIN;
-	s3c_fimd.backlight_max = BACKLIGHT_LEVEL_MAX;
+	s3c_fimd.backlight_min		= BACKLIGHT_LEVEL_MIN;
+	s3c_fimd.backlight_max		= BACKLIGHT_LEVEL_MAX;
 }
 
 static void lcd_gpio_init(void)
@@ -254,8 +258,6 @@ static void backlight_gpio_init(void)
 #define LCD_SDI_HIGH	gpio_set_value(GPIO_LCD_SDI, GPIO_LEVEL_HIGH);
 #define LCD_SDI_LOW		gpio_set_value(GPIO_LCD_SDI, GPIO_LEVEL_LOW);
 
-
-
 #define DEFAULT_USLEEP	5
 
 #define PWRCTL			0xF3
@@ -282,10 +284,6 @@ static void backlight_gpio_init(void)
 #define MIECTL1			0xCA
 #define MIECTL2			0xCC
 #define MIECTL3			0xCD
-
-
-
-
 
 struct setting_table {
 	u8 command;
@@ -693,11 +691,11 @@ void s3cfb_init_hw(void)
 
 void s3cfb_display_logo(int win_num)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[0];
+	struct s3c_fb_info *fbi = &s3c_fb_info[0];
 	u16 *logo_virt_buf;
 #ifdef CONFIG_FB_S3C64XX_BPP_24
 	u32 count;
-	u32 *scr_virt_buf = fbi->map_cpu_f1;
+	u32 *scr_virt_buf = (u32 *)fbi->map_cpu_f1;
 #endif
 
 	if(win_num != 0)
@@ -731,7 +729,7 @@ static struct timer_list progress_timer;
 
 static void progress_timer_handler(unsigned long data)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[1];
+	struct s3c_fb_info *fbi = &s3c_fb_info[1];
 	unsigned short *bar_src, *bar_dst;
 	int	i, j, p;
 
@@ -763,7 +761,7 @@ static unsigned int old_wincon1;
 
 void s3cfb_start_progress(void)
 {
-	s3c_fb_info_t *fbi = &s3c_fb_info[1];
+	struct s3c_fb_info *fbi = &s3c_fb_info[1];
 	unsigned short *bg_src, *bg_dst;
 	int	i, j, p;
 

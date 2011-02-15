@@ -63,6 +63,14 @@ config FB_S3C64XX_SHOW_LOGO
 	---help---
 	TBA
 
+config FB_S3C64XX_KEEP_POWER_ON_SHUTDOWN
+	bool "Don't disable LCD screen on system shutdown"
+	depends on FB_S3C64XX
+
+	default n
+	---help---
+	TBA
+
 choice
 depends on FB_S3C64XX
 prompt "Select LCD Type"

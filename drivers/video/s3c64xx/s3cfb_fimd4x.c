@@ -56,7 +56,7 @@ extern int backlight_power;
 
 #include "s3cfb.h"
 
-s3c_fimd_info_t s3c_fimd = {
+struct s3c_fb_drvdata s3c_fimd = {
 // KSS_2009-09-03 : Change LCD Dot Clk
 #ifndef S3C_FB_USE_CLK_DIRECTED
 	.vidcon0 = S3C_VIDCON0_INTERLACE_F_PROGRESSIVE | S3C_VIDCON0_VIDOUT_RGB_IF | S3C_VIDCON0_L1_DATA16_SUB_16_MODE | \
@@ -75,7 +75,7 @@ s3c_fimd_info_t s3c_fimd = {
 #if defined (CONFIG_FB_S3C64XX_BPP_8)
 	.wincon0 =  S3C_WINCONx_BYTSWP_ENABLE | S3C_WINCONx_BURSTLEN_4WORD | S3C_WINCONx_BPPMODE_F_8BPP_PAL,
 	.wincon1 =  S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_4WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1,
-	.bpp = S3C_FB_PIXEL_BPP_8,
+	.bpp = 8,
 	.bytes_per_pixel = 1,
 	.wpalcon = S3C_WPALCON_W0PAL_16BIT,
 
@@ -101,7 +101,7 @@ s3c_fimd_info_t s3c_fimd = {
 	           S3C_WINCONx_BURSTLEN_4WORD | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BLD_PIX_PLANE |
 	           S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_ALPHA_SEL_1 | S3C_WINCONx_ENWIN_F_DISABLE,
 
-	.bpp = S3C_FB_PIXEL_BPP_16,
+	.bpp = 16,
 	.bytes_per_pixel = 2,
 	.wpalcon = S3C_WPALCON_W0PAL_16BIT,
 
@@ -111,7 +111,7 @@ s3c_fimd_info_t s3c_fimd = {
 	.wincon2 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1,
 	.wincon3 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1,
 	.wincon4 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1,
-	.bpp = S3C_FB_PIXEL_BPP_24,
+	.bpp = 32,
 	.bytes_per_pixel = 4,
 	.wpalcon = S3C_WPALCON_W0PAL_24BIT,
 #endif
@@ -200,7 +200,7 @@ static void s3cfb_change_buff(int req_win, int req_fb)
 
 #if defined(CONFIG_FB_S3C64XX_VIRTUAL_SCREEN)
 
-static int s3cfb_vs_start(s3c_fb_info_t *fbi)
+static int s3cfb_vs_start(struct s3c_fb_info *fbi)
 {
 	switch(fbi->win_id)
 	{
@@ -235,7 +235,7 @@ static int s3cfb_vs_start(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_vs_stop(s3c_fb_info_t *fbi)
+static int s3cfb_vs_stop(struct s3c_fb_info *fbi)
 {
 	fbi->fb.var.xoffset = 0;
 	fbi->fb.var.yoffset = 0;
@@ -243,32 +243,32 @@ static int s3cfb_vs_stop(s3c_fb_info_t *fbi)
 	switch(fbi->win_id)
 	{
 		case 0 :
-			s3c_fimd.vidw00add0b0 = fbi->screen_dma_f1;
-			s3c_fimd.vidw00add0b1 = fbi->screen_dma_f2;
+			s3c_fimd.vidw00add0b0 = fbi->map_dma_f1;
+			s3c_fimd.vidw00add0b1 = fbi->map_dma_f2;
 			writel(s3c_fimd.vidw00add0b0, S3C_VIDW00ADD0B0);
 			writel(s3c_fimd.vidw00add0b1, S3C_VIDW00ADD0B1);
 			break;
 		case 1 :
-			s3c_fimd.vidw01add0b0 = fbi->screen_dma_f1;
-			s3c_fimd.vidw01add0b1 = fbi->screen_dma_f2;
+			s3c_fimd.vidw01add0b0 = fbi->map_dma_f1;
+			s3c_fimd.vidw01add0b1 = fbi->map_dma_f2;
 			writel(s3c_fimd.vidw01add0b0, S3C_VIDW01ADD0B0);
 			writel(s3c_fimd.vidw01add0b1, S3C_VIDW01ADD0B1);
 			break;
 		case 2 :
-			s3c_fimd.vidw02add0 = fbi->screen_dma_f1;
-			s3c_fimd.vidw02add1 = fbi->screen_dma_f2;
+			s3c_fimd.vidw02add0 = fbi->map_dma_f1;
+			s3c_fimd.vidw02add1 = fbi->map_dma_f2;
 			writel(s3c_fimd.vidw02add0, S3C_VIDW02ADD0);
 			writel(s3c_fimd.vidw02add1, S3C_VIDW02ADD0);
 			break;
 		case 3 :
-			s3c_fimd.vidw03add0 = fbi->screen_dma_f1;
-			s3c_fimd.vidw03add1 = fbi->screen_dma_f2;
+			s3c_fimd.vidw03add0 = fbi->map_dma_f1;
+			s3c_fimd.vidw03add1 = fbi->map_dma_f2;
 			writel(s3c_fimd.vidw03add0, S3C_VIDW03ADD0);
 			writel(s3c_fimd.vidw03add1, S3C_VIDW03ADD1);
 			break;
 		case 4 :
-			s3c_fimd.vidw04add0 = fbi->screen_dma_f1;
-			s3c_fimd.vidw04add1 = fbi->screen_dma_f2;
+			s3c_fimd.vidw04add0 = fbi->map_dma_f1;
+			s3c_fimd.vidw04add1 = fbi->map_dma_f2;
 			writel(s3c_fimd.vidw04add0, S3C_VIDW04ADD0);
 			writel(s3c_fimd.vidw04add1, S3C_VIDW04ADD1);
 			break;
@@ -280,7 +280,7 @@ static int s3cfb_vs_stop(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_vs_set(s3c_fb_info_t *fbi)
+static int s3cfb_vs_set(struct s3c_fb_info *fbi)
 {
 	int page_width;
 	int offset;
@@ -300,8 +300,8 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 			writel(s3c_fimd.vidw00add2, S3C_VIDW00ADD2);
 
 			// start address
-			s3c_fimd.vidw00add0b0 = fbi->screen_dma_f1 + start;
-			s3c_fimd.vidw00add0b1 = fbi->screen_dma_f2 + start;
+			s3c_fimd.vidw00add0b0 = fbi->map_dma_f1 + start;
+			s3c_fimd.vidw00add0b1 = fbi->map_dma_f2 + start;
 			writel(s3c_fimd.vidw00add0b0, S3C_VIDW00ADD0B0);
 			writel(s3c_fimd.vidw00add0b1, S3C_VIDW00ADD0B1);
 
@@ -318,8 +318,8 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 			writel(s3c_fimd.vidw01add2, S3C_VIDW01ADD2);
 
 			// start address
-			s3c_fimd.vidw01add0b0 = fbi->screen_dma_f1 + start;
-			s3c_fimd.vidw01add0b1 = fbi->screen_dma_f2 + start;
+			s3c_fimd.vidw01add0b0 = fbi->map_dma_f1 + start;
+			s3c_fimd.vidw01add0b1 = fbi->map_dma_f2 + start;
 			writel(s3c_fimd.vidw01add0b0, S3C_VIDW01ADD0B0);
 			writel(s3c_fimd.vidw01add0b1, S3C_VIDW01ADD0B1);
 
@@ -336,7 +336,7 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 			writel(s3c_fimd.vidw02add2, S3C_VIDW02ADD2);
 
 			// start address
-			s3c_fimd.vidw02add0 = fbi->screen_dma_f1 + start;
+			s3c_fimd.vidw02add0 = fbi->map_dma_f1 + start;
 			writel(s3c_fimd.vidw02add0, S3C_VIDW02ADD0);
 
 			// end address
@@ -350,7 +350,7 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 			writel(s3c_fimd.vidw03add2, S3C_VIDW02ADD2);
 
 			// start address
-			s3c_fimd.vidw03add0 = fbi->screen_dma_f1 + start;
+			s3c_fimd.vidw03add0 = fbi->map_dma_f1 + start;
 			writel(s3c_fimd.vidw03add0, S3C_VIDW03ADD0);
 
 			// end address
@@ -363,7 +363,7 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 			writel(s3c_fimd.vidw04add2, S3C_VIDW04ADD2);
 
 			// start address
-			s3c_fimd.vidw04add0 = fbi->screen_dma_f1 + start;
+			s3c_fimd.vidw04add0 = fbi->map_dma_f1 + start;
 			writel(s3c_fimd.vidw04add0, S3C_VIDW04ADD0);
 
 			// end address
@@ -380,7 +380,7 @@ static int s3cfb_vs_set(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_vs_move_left(s3c_fb_info_t *fbi)
+static int s3cfb_vs_move_left(struct s3c_fb_info *fbi)
 {
 	int page_width;
 	int offset;
@@ -470,7 +470,7 @@ static int s3cfb_vs_move_left(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_vs_move_right(s3c_fb_info_t *fbi)
+static int s3cfb_vs_move_right(struct s3c_fb_info *fbi)
 {
 	int page_width;
 	int offset;
@@ -559,7 +559,7 @@ static int s3cfb_vs_move_right(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_vs_move_up(s3c_fb_info_t *fbi)
+static int s3cfb_vs_move_up(struct s3c_fb_info *fbi)
 {
 	int page_width;
 	int offset;
@@ -650,7 +650,7 @@ static int s3cfb_vs_move_up(s3c_fb_info_t *fbi)
 }
 
 
-static int s3cfb_vs_move_down(s3c_fb_info_t *fbi)
+static int s3cfb_vs_move_down(struct s3c_fb_info *fbi)
 {
 	int page_width;
 	int offset;
@@ -739,7 +739,7 @@ static int s3cfb_vs_move_down(s3c_fb_info_t *fbi)
 	return 0;
 }
 
-static int s3cfb_set_vs_registers(s3c_fb_info_t *fbi, int vs_cmd)
+static int s3cfb_set_vs_registers(struct s3c_fb_info *fbi, int vs_cmd)
 {
 	int ret = 0;
 
@@ -774,7 +774,7 @@ static int s3cfb_set_vs_registers(s3c_fb_info_t *fbi, int vs_cmd)
 
 #endif // CONFIG_FB_S3C64XX_VIRTUAL_SCREEN
 
-void s3cfb_write_palette(s3c_fb_info_t *fbi)
+void s3cfb_write_palette(struct s3c_fb_info *fbi)
 {
 	unsigned int i;
 	unsigned long ent;
@@ -807,6 +807,7 @@ void s3cfb_write_palette(s3c_fb_info_t *fbi)
 
 irqreturn_t s3cfb_irq(int irqno, void *param)
 {
+#if 0
 	unsigned long buffer_size = 0;
 	unsigned int i;
 	unsigned int buffer_page_offset, buffer_page_width;
@@ -881,6 +882,7 @@ irqreturn_t s3cfb_irq(int irqno, void *param)
 			s3c_fb_info[i].next_fb_info_change_req = 0;
 		}
 	}
+#endif
 
 	/* for clearing the interrupt source */
 	writel(readl(S3C_VIDINTCON1), S3C_VIDINTCON1);
@@ -1016,13 +1018,13 @@ void s3cfb_enable_dma(void)
 
 EXPORT_SYMBOL(s3cfb_enable_dma);
 
-int s3cfb_init_registers(s3c_fb_info_t *fbi)
+int s3cfb_init_registers(struct s3c_fb_info *fbi)
 {
 	struct clk *lcd_clock;
 	struct fb_var_screeninfo *var = &fbi->fb.var;
 	unsigned long flags = 0, page_width = 0, offset = 0;
-	unsigned long video_phy_temp_f1 = fbi->screen_dma_f1;
-	unsigned long video_phy_temp_f2 = fbi->screen_dma_f2;
+	unsigned long video_phy_temp_f1 = fbi->map_dma_f1;
+	unsigned long video_phy_temp_f2 = fbi->map_dma_f2;
 	int win_num =  fbi->win_id;
 
 	/* Initialise LCD with values from hare */
@@ -1034,7 +1036,7 @@ int s3cfb_init_registers(s3c_fb_info_t *fbi)
 	if (win_num == 0)
 	{
 		/* Early Clock Setting to Sync Bootloader */
-		lcd_clock = clk_get(NULL, "lcd");
+		lcd_clock = s3c_fimd.vidclk;
 
 // KSS_2009-09-03 : Change LCD Dot Clk
 #ifndef S3C_FB_USE_CLK_DIRECTED
@@ -1179,7 +1181,7 @@ int s3cfb_init_registers(s3c_fb_info_t *fbi)
 	return 0;
  }
 
-void s3cfb_activate_var(s3c_fb_info_t *fbi, struct fb_var_screeninfo *var)
+void s3cfb_activate_var(struct s3c_fb_info *fbi, struct fb_var_screeninfo *var)
 {
 	DPRINTK("%s: var->bpp = %d\n", __FUNCTION__, var->bits_per_pixel);
 
@@ -1190,7 +1192,7 @@ void s3cfb_activate_var(s3c_fb_info_t *fbi, struct fb_var_screeninfo *var)
 		s3c_fimd.wincon2 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon3 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon4 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
-		s3c_fimd.bpp     = S3C_FB_PIXEL_BPP_8;
+		s3c_fimd.bpp     = 8;
 		s3c_fimd.bytes_per_pixel = 1;
 		s3c_fimd.wpalcon = S3C_WPALCON_W0PAL_16BIT;
 		break;
@@ -1201,21 +1203,17 @@ void s3cfb_activate_var(s3c_fb_info_t *fbi, struct fb_var_screeninfo *var)
 		s3c_fimd.wincon2 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon3 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon4 = S3C_WINCONx_HAWSWP_ENABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_16BPP_565 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
-		s3c_fimd.bpp     = S3C_FB_PIXEL_BPP_16;
+		s3c_fimd.bpp     = 16;
 		s3c_fimd.bytes_per_pixel = 2;
 		break;
 
-	case 24:
+	case 32:
 		s3c_fimd.wincon0 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888;
 		s3c_fimd.wincon1 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon2 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon3 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
 		s3c_fimd.wincon4 = S3C_WINCONx_HAWSWP_DISABLE | S3C_WINCONx_BURSTLEN_16WORD | S3C_WINCONx_BPPMODE_F_24BPP_888 | S3C_WINCONx_BLD_PIX_PLANE | S3C_WINCONx_ALPHA_SEL_1;
-		s3c_fimd.bpp     = S3C_FB_PIXEL_BPP_24;
-		s3c_fimd.bytes_per_pixel = 4;
-		break;
-
-	case 32:
+		s3c_fimd.bpp     = 32;
 		s3c_fimd.bytes_per_pixel = 4;
 		break;
 	}
@@ -1242,9 +1240,9 @@ void s3cfb_activate_var(s3c_fb_info_t *fbi, struct fb_var_screeninfo *var)
  * Below codes are not verified yet
  * and there are nothing about Double buffering features
  */
-void s3cfb_set_fb_addr(s3c_fb_info_t *fbi)
+void s3cfb_set_fb_addr(struct s3c_fb_info *fbi)
 {
-	unsigned long video_phy_temp_f1 = fbi->screen_dma_f1;
+	unsigned long video_phy_temp_f1 = fbi->map_dma_f1;
 	unsigned long start_address, end_address;
 	unsigned int  start;
 
@@ -1306,7 +1304,7 @@ void s3cfb_set_fb_addr(s3c_fb_info_t *fbi)
 	}
 }
 
-static int s3cfb_set_alpha_level(s3c_fb_info_t *fbi, unsigned int level, unsigned int alpha_index)
+static int s3cfb_set_alpha_level(struct s3c_fb_info *fbi, unsigned int level, unsigned int alpha_index)
 {
 	unsigned long alpha_val;
 	int win_num = fbi->win_id;
@@ -1331,7 +1329,7 @@ static int s3cfb_set_alpha_level(s3c_fb_info_t *fbi, unsigned int level, unsigne
 	return 0;
 }
 
-int s3cfb_set_alpha_mode(s3c_fb_info_t *fbi, int mode)
+int s3cfb_set_alpha_mode(struct s3c_fb_info *fbi, int mode)
 {
 	unsigned long alpha_mode;
 	int win_num = fbi->win_id;
@@ -1357,7 +1355,7 @@ int s3cfb_set_alpha_mode(s3c_fb_info_t *fbi, int mode)
 	return 0;
 }
 
-int s3cfb_set_win_position(s3c_fb_info_t *fbi, int left_x, int top_y, int width, int height)
+int s3cfb_set_win_position(struct s3c_fb_info *fbi, int left_x, int top_y, int width, int height)
 {
 	struct fb_var_screeninfo *var= &fbi->fb.var;
 	int win_num = fbi->win_id;
@@ -1371,7 +1369,7 @@ int s3cfb_set_win_position(s3c_fb_info_t *fbi, int left_x, int top_y, int width,
 	return 0;
 }
 
-int s3cfb_set_win_size(s3c_fb_info_t *fbi, int width, int height)
+int s3cfb_set_win_size(struct s3c_fb_info *fbi, int width, int height)
 {
 	struct fb_var_screeninfo *var= &fbi->fb.var;
 	int win_num = fbi->win_id;
@@ -1391,7 +1389,7 @@ int s3cfb_set_win_size(s3c_fb_info_t *fbi, int width, int height)
 	return 0;
 }
 
-int s3cfb_set_fb_size(s3c_fb_info_t *fbi)
+int s3cfb_set_fb_size(struct s3c_fb_info *fbi)
 {
 	struct fb_var_screeninfo *var= &fbi->fb.var;
 	int win_num = fbi->win_id;
@@ -1450,7 +1448,7 @@ EXPORT_SYMBOL(s3cfb_enable_rgbport);
 
 int s3cfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
-	s3c_fb_info_t *fbi = container_of(info, s3c_fb_info_t, fb);
+	struct s3c_fb_info *fbi = container_of(info, struct s3c_fb_info, fb);
 
 	s3c_win_info_t       win_info;
 	s3c_color_key_info_t colkey_info;
@@ -1733,6 +1731,8 @@ void s3cfb_pre_init(void)
 	s3c_fimd.vidintcon0 |= S3C_VIDINTCON0_INTFRMEN_ENABLE;
 
 	writel(s3c_fimd.vidintcon0, S3C_VIDINTCON0);
+
+	s3cfb_init_hw();
 }
 
 int s3cfb_set_gpio(void)
@@ -1939,7 +1939,7 @@ static int lcd_pm_status = 0;
 static int lcd_clock_status = 1;
 int lcd_late_resume = 1;
 
-static int s3cfb_suspend_sub(s3c_fb_info_t *fbi)
+static int s3cfb_suspend_sub(struct s3c_fb_info *fbi)
 {
         s3c_pm_do_save(s3c_lcd_save, ARRAY_SIZE(s3c_lcd_save));
 
@@ -1957,7 +1957,8 @@ static int s3cfb_suspend_sub(s3c_fb_info_t *fbi)
 
         msleep(1);
 
-        clk_disable(fbi->clk);
+        clk_disable(s3c_fimd.vidclk);
+	clk_disable(s3c_fimd.clk);
 
 #ifdef USE_LCD_DOMAIN_GATING
         s3c_set_normal_cfg(S3C64XX_DOMAIN_F, S3C64XX_LP_MODE, S3C64XX_LCD);
@@ -1966,7 +1967,7 @@ static int s3cfb_suspend_sub(s3c_fb_info_t *fbi)
         return 0;
 }
 
-static int s3cfb_resume_sub(s3c_fb_info_t *fbi)
+static int s3cfb_resume_sub(struct s3c_fb_info *fbi)
 {
 #ifdef USE_LCD_DOMAIN_GATING
         s3c_set_normal_cfg(S3C64XX_DOMAIN_F, S3C64XX_ACTIVE_MODE, S3C64XX_LCD);
@@ -1976,7 +1977,8 @@ static int s3cfb_resume_sub(s3c_fb_info_t *fbi)
         }
 #endif /* USE_LCD_DOMAIN_GATING */
 
-        clk_enable(fbi->clk);
+	clk_enable(s3c_fimd.clk);
+        clk_enable(s3c_fimd.vidclk);
 
         s3c_pm_do_restore(s3c_lcd_save, ARRAY_SIZE(s3c_lcd_save));
 
@@ -1995,7 +1997,7 @@ int s3cfb_is_clock_on(void)
 void s3cfb_enable_clock_power(void)
 {
 	struct early_suspend *early_suspend_ptr = get_earlysuspend_ptr();
-	s3c_fb_info_t *info = container_of(early_suspend_ptr, s3c_fb_info_t, early_suspend);
+	struct s3c_fb_info *info = container_of(early_suspend_ptr, struct s3c_fb_info, early_suspend);
 
 	s3cfb_resume_sub(info);
 
@@ -2005,7 +2007,7 @@ void s3cfb_enable_clock_power(void)
 
 void s3cfb_early_suspend(struct early_suspend *h)
 {
-	s3c_fb_info_t *info = container_of(h, s3c_fb_info_t, early_suspend);
+	struct s3c_fb_info *info = container_of(h, struct s3c_fb_info, early_suspend);
 
 	printk("#%s\n", __func__);
 
@@ -2019,7 +2021,7 @@ void s3cfb_early_suspend(struct early_suspend *h)
 
 void s3cfb_late_resume(struct early_suspend *h)
 {
-	s3c_fb_info_t *info = container_of(h, s3c_fb_info_t, early_suspend);
+	struct s3c_fb_info *info = container_of(h, struct s3c_fb_info, early_suspend);
 
 	printk("#%s\n", __func__);
 
@@ -2036,7 +2038,7 @@ void s3cfb_late_resume(struct early_suspend *h)
 int s3cfb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(dev);
-	s3c_fb_info_t *info = fbinfo->par;
+	struct s3c_fb_info *info = fbinfo->par;
 
 	printk("#%s\n", __func__);
 
@@ -2055,7 +2057,7 @@ int s3cfb_suspend(struct platform_device *dev, pm_message_t state)
 int s3cfb_resume(struct platform_device *dev)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(dev);
-	s3c_fb_info_t *info = fbinfo->par;
+	struct s3c_fb_info *info = fbinfo->par;
 
 	printk("#%s\n", __func__);
 
@@ -2071,12 +2073,11 @@ int s3cfb_resume(struct platform_device *dev)
  * shutdown
  */
 extern void lcd_power_ctrl(s32 value);
-int s3cfb_shutdown(struct platform_device *dev)
+void s3cfb_shutdown(struct platform_device *dev)
 {
-#if 0
+#ifndef FB_S3C64XX_KEEP_POWER_ON_SHUTDOWN
 	lcd_power_ctrl(0);
 #endif
-	return 0;
 }
 #else
 
@@ -2086,7 +2087,7 @@ int s3cfb_shutdown(struct platform_device *dev)
 int s3cfb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(dev);
-	s3c_fb_info_t *info = fbinfo->par;
+	struct s3c_fb_info *info = fbinfo->par;
 
 	s3cfb_suspend_sub(info);
 
@@ -2099,7 +2100,7 @@ int s3cfb_suspend(struct platform_device *dev, pm_message_t state)
 int s3cfb_resume(struct platform_device *dev)
 {
 	struct fb_info *fbinfo = platform_get_drvdata(dev);
-	s3c_fb_info_t *info = fbinfo->par;
+	struct s3c_fb_info *info = fbinfo->par;
 
 	s3cfb_resume_sub(info);
 
@@ -2109,12 +2110,11 @@ int s3cfb_resume(struct platform_device *dev)
 /*
  * shutdown
  */
-int s3cfb_shutdown(struct platform_device *dev)
+void s3cfb_shutdown(struct platform_device *dev)
 {
-#if 0
+#ifndef FB_S3C64XX_KEEP_POWER_ON_SHUTDOWN
 	lcd_power_ctrl(0);
 #endif
-	return 0;
 }
 #endif	/* CONFIG_HAS_EARLYSUSPEND */
 
@@ -2129,8 +2129,7 @@ int s3cfb_resume(struct platform_device *dev)
 	return 0;
 }
 
-int s3cfb_shutdown(struct platform_device *dev)
+void s3cfb_shutdown(struct platform_device *dev)
 {
-	return 0;
 }
 #endif	/* CONFIG_PM */

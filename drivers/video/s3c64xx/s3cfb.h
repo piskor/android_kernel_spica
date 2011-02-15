@@ -44,25 +44,10 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define ON 	1
 #define OFF	0
 
-#define S3C_FB_PIXEL_BPP_8	8
-#define S3C_FB_PIXEL_BPP_16	16	/*  RGB 5-6-5 format for SMDK EVAL BOARD */
-#define S3C_FB_PIXEL_BPP_24	24	/*  RGB 8-8-8 format for SMDK EVAL BOARD */
-
 #define S3C_FB_OUTPUT_RGB	0
 #define S3C_FB_OUTPUT_TV	1
 #define S3C_FB_OUTPUT_I80_LDI0	2
 #define S3C_FB_OUTPUT_I80_LDI1	3
-
-#if defined(CONFIG_CPU_S3C2443) || defined(CONFIG_CPU_S3C2450) || defined(CONFIG_CPU_S3C2416)
-#define S3C_FB_MAX_NUM	2
-
-#elif defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410) || defined(CONFIG_CPU_S5P6440)
-#define S3C_FB_MAX_NUM	5
-
-#else
-#define S3C_FB_MAX_NUM	1
-
-#endif
 
 #define S3C_FB_PALETTE_BUFF_CLEAR	(0x80000000)	/* entry is clear/invalid */
 #define S3C_FB_COLOR_KEY_DIR_BG 	0
@@ -82,17 +67,25 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define S3CFB_ALPHA_MODE_PIXEL		1
 
 #ifdef CONFIG_FB_S3C_SHOW_LOGO
-#define S3C_FB_DISPLAY_LOGO
+	#define S3C_FB_DISPLAY_LOGO
 #endif
 
 #if defined(CONFIG_MACH_SPICA)
-	#define S3C_FB_USE_CLK_DIRECTED		// KSS_2009-09-03 : Change LCD Dot Clk
+	#define S3C_FB_USE_CLK_DIRECTED // KSS_2009-09-03 : Change LCD Dot Clk
 #endif
 
 /*
  *  macros
  */
+#define FMT_MHZ				"%ld.%03ld"
 #define PRINT_MHZ(m) 			((m) / MHZ), ((m / 1000) % 1000)
+
+#if 0
+#define S3C_FB_MAX_NUM			5
+#else
+// tom3q: Temporarily, to work around failing memory allocation with more than 2 framebuffers
+#define S3C_FB_MAX_NUM			1
+#endif
 #define FB_MAX_NUM(x, y)		((x) > (y) ? (y) : (x))
 #define S3C_FB_NUM			FB_MAX_NUM(S3C_FB_MAX_NUM, CONFIG_FB_S3C64XX_NUM)
 
@@ -103,7 +96,6 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define S3C_FB_SET_BRIGHTNESS		_IOW ('F', 2,  unsigned int)
 #define S3C_FB_WIN_ON			_IOW ('F', 10, unsigned int)
 #define S3C_FB_WIN_OFF			_IOW ('F', 11, unsigned int)
-//#define FBIO_WAITFORVSYNC		_IOW ('F', 32, unsigned int)
 
 #if defined(CONFIG_FB_S3C_VIRTUAL_SCREEN)
 #define S3C_FB_VS_START			_IO  ('F', 103)
@@ -233,16 +225,10 @@ const static s3c_fb_rgb_t s3c_fb_rgb_32 = {
 	.transp = {.offset = 24, .length = 8,},
 };
 
-typedef struct {
+struct s3c_fb_info {
 	struct fb_info		fb;
-	struct device		*dev;
-
-	struct clk		*clk;
-
-//	struct resource		*mem;
-//	void __iomem		*io;
-
 	unsigned int		win_id;
+	struct device		*dev;
 
 	unsigned int		max_bpp;
 	unsigned int		max_xres;
@@ -253,18 +239,10 @@ typedef struct {
 	u_char *		map_cpu_f1;	/* virtual */
 	unsigned int		map_size_f1;
 
-	/* addresses of pieces placed in raw buffer */
-	u_char *		screen_cpu_f1;	/* virtual address of frame buffer */
-	dma_addr_t		screen_dma_f1;	/* physical address of frame buffer */
-
 	/* raw memory addresses */
 	dma_addr_t		map_dma_f2;	/* physical */
 	u_char *		map_cpu_f2;	/* virtual */
 	unsigned int		map_size_f2;
-
-	/* addresses of pieces placed in raw buffer */
-	u_char *		screen_cpu_f2;	/* virtual address of frame buffer */
-	dma_addr_t		screen_dma_f2;	/* physical address of frame buffer */
 
 	unsigned int		palette_ready;
 	unsigned int		fb_change_ready;
@@ -279,9 +257,12 @@ typedef struct {
 	unsigned int		lcd_offset_y;
 	unsigned int		next_fb_info_change_req;
 	s3c_fb_next_info_t	next_fb_info;
-} s3c_fb_info_t;
+};
 
-typedef struct {
+struct s3c_fb_drvdata {
+	/* Clocks */
+	struct clk		*clk;
+	struct clk		*vidclk;
 
 	/* Screen size */
 	int width;
@@ -475,40 +456,38 @@ typedef struct {
 	void (*set_backlight_power)(int);
 	void (*set_lcd_power)(int);
 	void (*set_brightness)(int);
-	int (*map_video_memory)(s3c_fb_info_t *);
-	int (*unmap_video_memory)(s3c_fb_info_t *);
-}s3c_fimd_info_t;
+};
 
 /*
  *  Externs
  */
-extern s3c_fb_info_t s3c_fb_info[];
-extern s3c_fimd_info_t s3c_fimd;
+extern struct s3c_fb_info s3c_fb_info[];
+extern struct s3c_fb_drvdata s3c_fimd;
 
 extern int soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
 extern int s3cfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
-extern void s3cfb_activate_var(s3c_fb_info_t *fbi, struct fb_var_screeninfo *var);
-extern void s3cfb_set_fb_addr(s3c_fb_info_t *fbi);
+extern void s3cfb_activate_var(struct s3c_fb_info *fbi, struct fb_var_screeninfo *var);
+extern void s3cfb_set_fb_addr(struct s3c_fb_info *fbi);
 extern void s3cfb_init_hw(void);
 extern irqreturn_t s3cfb_irq(int irqno, void *param);
-extern int s3cfb_init_registers(s3c_fb_info_t *fbi);
-extern int s3cfb_set_win_position(s3c_fb_info_t *fbi, int left_x, int top_y, int width, int height);
-extern int s3cfb_set_win_size(s3c_fb_info_t *fbi, int width, int height);
-extern int s3cfb_set_fb_size(s3c_fb_info_t *fbi);
+extern int s3cfb_init_registers(struct s3c_fb_info *fbi);
+extern int s3cfb_set_win_position(struct s3c_fb_info *fbi, int left_x, int top_y, int width, int height);
+extern int s3cfb_set_win_size(struct s3c_fb_info *fbi, int width, int height);
+extern int s3cfb_set_fb_size(struct s3c_fb_info *fbi);
 extern int s3cfb_set_vs_info(s3c_vs_info_t vs_info);
 extern int s3cfb_wait_for_vsync(void);
-extern int s3cfb_onoff_color_key(s3c_fb_info_t *fbi, int onoff);
-extern int s3cfb_onoff_color_key_alpha(s3c_fb_info_t *fbi, int onoff);
-extern int s3cfb_set_color_key_registers(s3c_fb_info_t *fbi, s3c_color_key_info_t colkey_info);
-extern int s3cfb_set_color_value(s3c_fb_info_t *fbi, s3c_color_val_info_t colval_info);
-extern int s3cfb_init_win(s3c_fb_info_t *fbi, int bpp, int left_x, int top_y, int width, int height, int onoff);
-extern int s3cfb_onoff_win(s3c_fb_info_t *fbi, int onoff);
+extern int s3cfb_onoff_color_key(struct s3c_fb_info *fbi, int onoff);
+extern int s3cfb_onoff_color_key_alpha(struct s3c_fb_info *fbi, int onoff);
+extern int s3cfb_set_color_key_registers(struct s3c_fb_info *fbi, s3c_color_key_info_t colkey_info);
+extern int s3cfb_set_color_value(struct s3c_fb_info *fbi, s3c_color_val_info_t colval_info);
+extern int s3cfb_init_win(struct s3c_fb_info *fbi, int bpp, int left_x, int top_y, int width, int height, int onoff);
+extern int s3cfb_onoff_win(struct s3c_fb_info *fbi, int onoff);
 extern int s3cfb_set_gpio(void);
 extern void s3cfb_start_lcd(void);
 extern void s3cfb_stop_lcd(void);
 extern int s3cfb_suspend(struct platform_device *dev, pm_message_t state);
 extern int s3cfb_resume(struct platform_device *dev);
-extern int s3cfb_shutdown(struct platform_device *dev);
+extern void s3cfb_shutdown(struct platform_device *dev);
 extern int s3cfb_spi_gpio_request(int ch);
 extern void s3cfb_spi_lcd_den(int ch, int value);
 extern void s3cfb_spi_lcd_dseri(int ch, int value);
@@ -533,4 +512,3 @@ extern void s3cfb_late_resume(struct early_suspend *h);
 #endif	/* CONFIG_HAS_EARLYSUSPEND */
 
 #endif
-
