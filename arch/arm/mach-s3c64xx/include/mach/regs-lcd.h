@@ -22,42 +22,6 @@
 #define S3C_VIDCON0		S3C_LCDREG(0x00)  	/* Video control 0 register */
 #define S3C_VIDCON1		S3C_LCDREG(0x04)  	/* Video control 1 register */
 
-#if defined(CONFIG_CPU_S3C2443)||defined(CONFIG_CPU_S3C2450) || defined(CONFIG_CPU_S3C2416)
-#define S3C_VIDTCON0		S3C_LCDREG(0x08)  	/* LCD CONTROL 1 */
-#define S3C_VIDTCON1		S3C_LCDREG(0x0C)  	/* LCD CONTROL 1 */
-#define S3C_VIDTCON2		S3C_LCDREG(0x10) 	/* LCD CONTROL 1 */
-#define S3C_WINCON0		S3C_LCDREG(0x14)  	/* LCD CONTROL 1 */
-#define S3C_WINCON1		S3C_LCDREG(0x18)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD0A		S3C_LCDREG(0x28)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD0B		S3C_LCDREG(0x2C)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD0C		S3C_LCDREG(0x30)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD1A		S3C_LCDREG(0x34)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD1B		S3C_LCDREG(0x38)  	/* LCD CONTROL 1 */
-#define S3C_VIDOSD1C		S3C_LCDREG(0x3C)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD0B0	S3C_LCDREG(0x64)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD0B1	S3C_LCDREG(0x68)  	/* LCD CONTROL 1 */
-#define S3C_VIDW01ADD0		S3C_LCDREG(0x6C)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD1B0	S3C_LCDREG(0x7C)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD1B1	S3C_LCDREG(0x80)  	/* LCD CONTROL 1 */
-#define S3C_VIDW01ADD1		S3C_LCDREG(0x84)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD2B0	S3C_LCDREG(0x94)  	/* LCD CONTROL 1 */
-#define S3C_VIDW00ADD2B1	S3C_LCDREG(0x98)  	/* LCD CONTROL 1 */
-#define S3C_VIDW01ADD2		S3C_LCDREG(0x9C)  	/* LCD CONTROL 1 */
-#define S3C_VIDINTCON		S3C_LCDREG(0xAC)  	/* LCD CONTROL 1 */
-#define S3C_W1KEYCON0		S3C_LCDREG(0xB0)  	/* LCD CONTROL 1 */
-#define S3C_W1KEYCON1		S3C_LCDREG(0xB4)  	/* LCD CONTROL 1 */
-#define S3C_WIN0MAP		S3C_LCDREG(0xD0)  	/* LCD CONTROL 1 */
-#define S3C_WIN1MAP		S3C_LCDREG(0xD4)  	/* LCD CONTROL 1 */
-#define S3C_WPALCON		S3C_LCDREG(0xE4)  	/* LCD CONTROL 1 */
-#define S3C_SYSIFCON0		S3C_LCDREG(0x130)  	/* LCD CONTROL 1 */
-#define S3C_SYSIFCON1		S3C_LCDREG(0x134)  	/* LCD CONTROL 1 */
-#define S3C_DITHMODE		S3C_LCDREG(0x138)  	/* LCD CONTROL 1 */
-#define S3C_SIFCCON0		S3C_LCDREG(0x13C)  	/* LCD CONTROL 1 */
-#define S3C_SIFCCON1		S3C_LCDREG(0x140)  	/* LCD CONTROL 1 */
-#define S3C_SIFCCON2		S3C_LCDREG(0x144)  	/* LCD CONTROL 1 */
-#define S3C_CPUTRIGCON2		S3C_LCDREG(0x160)  	/* LCD CONTROL 1 */
-
-#elif defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410) || defined(CONFIG_CPU_S5P6440) || defined(CONFIG_CPU_S5PC100)
 #define S3C_VIDCON2		S3C_LCDREG(0x08)  	/* Video control 2 register */
 #define S3C_PRTCON		S3C_LCDREG(0x0C)	/* Protection control register */
 #define S3C_VIDTCON0		S3C_LCDREG(0x10)  	/* Video time control 0 register */
@@ -71,9 +35,10 @@
 #define S3C_WINCON3		S3C_LCDREG(0x2C)  	/* Window control 3 register */
 #define S3C_WINCON4		S3C_LCDREG(0x30)  	/* Window control 4 register*/
 
+#define S3C_WINCON(x)		S3C_LCDREG(0x20 + 4*(x))
 
 #define S3C_VIDOSD0A		S3C_LCDREG(0x40)  	/* Video Window 0 position control register */
-#define S3C_VIDOSD0B		S3C_LCDREG(0x44)  	/* Video Window 0 position control register1 */
+#define S3C_VIDOSD0B		S3C_LCDREG(0x44)  	/* Video Window 0 position control register */
 #define S3C_VIDOSD0C		S3C_LCDREG(0x48)  	/* Video Window 0 position control register */
 
 #define S3C_VIDOSD1A		S3C_LCDREG(0x50)  	/* Video Window 1 position control register */
@@ -94,6 +59,11 @@
 #define S3C_VIDOSD4B		S3C_LCDREG(0x84)  	/* Video Window 4 position control register */
 #define S3C_VIDOSD4C		S3C_LCDREG(0x88)  	/* Video Window 4 position control register */
 
+#define S3C_VIDOSDA(x)		S3C_LCDREG(0x40 + 16*(x))
+#define S3C_VIDOSDB(x)		S3C_LCDREG(0x44 + 16*(x))
+#define S3C_VIDOSDC(x)		S3C_LCDREG(0x48 + 16*(x))
+#define S3C_VIDOSDD(x)		S3C_LCDREG(0x4c + 16*(x))
+
 #define S3C_VIDW00ADD2B0	S3C_LCDREG(0x94)  	/* LCD CONTROL 1 */
 #define S3C_VIDW00ADD2B1	S3C_LCDREG(0x98)  	/* LCD CONTROL 1 */
 
@@ -104,6 +74,10 @@
 #define S3C_VIDW02ADD0		S3C_LCDREG(0x0B0) 	/* Window 2 buffer start address register */
 #define S3C_VIDW03ADD0		S3C_LCDREG(0x0B8) 	/* Window 3 buffer start address register */
 #define S3C_VIDW04ADD0		S3C_LCDREG(0x0C0) 	/* Window 4 buffer start address register */
+
+#define S3C_VIDWADD0B0(x)	S3C_LCDREG(0x0A0 + 8*(x))
+#define S3C_VIDWADD0B1(x)	S3C_LCDREG(0x0A4 + 8*(x))
+
 #define S3C_VIDW00ADD1B0	S3C_LCDREG(0x0D0) 	/* Window 0 buffer end address register, buffer 0 */
 #define S3C_VIDW00ADD1B1	S3C_LCDREG(0x0D4) 	/* Window 0 buffer end address register, buffer 1 */
 #define S3C_VIDW01ADD1B0	S3C_LCDREG(0x0D8) 	/* Window 1 buffer end address register, buffer 0 */
@@ -113,22 +87,28 @@
 #define S3C_VIDW04ADD1		S3C_LCDREG(0x0F0) 	/* Window 4 buffer end address register */
 #define S3C_VIDW00ADD2		S3C_LCDREG(0x100) 	/* Window 0 buffer size register */
 #define S3C_VIDW01ADD2		S3C_LCDREG(0x104) 	/* Window 1 buffer size register */
-
 #define S3C_VIDW02ADD2		S3C_LCDREG(0x108) 	/* Window 2 buffer size register */
 #define S3C_VIDW03ADD2		S3C_LCDREG(0x10C) 	/* Window 3 buffer size register */
 #define S3C_VIDW04ADD2		S3C_LCDREG(0x110) 	/* Window 4 buffer size register */
 
+#define S3C_VIDWADD1B0(x)	S3C_LCDREG(0x0D0 + 8*(x))
+#define S3C_VIDWADD1B1(x)	S3C_LCDREG(0x0D4 + 8*(x))
+
 #define S3C_VIDINTCON0		S3C_LCDREG(0x130)	/* Indicate the Video interrupt control register */
 #define S3C_VIDINTCON1		S3C_LCDREG(0x134) 	/* Video Interrupt Pending register */
+
 #define S3C_W1KEYCON0		S3C_LCDREG(0x140) 	/* Color key control register */
 #define S3C_W1KEYCON1		S3C_LCDREG(0x144) 	/* Color key value ( transparent value) register */
 #define S3C_W2KEYCON0		S3C_LCDREG(0x148) 	/* Color key control register */
 #define S3C_W2KEYCON1		S3C_LCDREG(0x14C) 	/* Color key value (transparent value) register */
-
 #define S3C_W3KEYCON0		S3C_LCDREG(0x150)	/* Color key control register	*/
 #define S3C_W3KEYCON1		S3C_LCDREG(0x154)	/* Color key value (transparent value) register	*/
 #define S3C_W4KEYCON0		S3C_LCDREG(0x158)	/* Color key control register	*/
 #define S3C_W4KEYCON1		S3C_LCDREG(0x15C)	/* Color key value (transparent value) register	*/
+
+#define S3C_WKEYCON0(x)		S3C_LCDREG(0x140 + 8*((x) - 1))
+#define S3C_WKEYCON1(x)		S3C_LCDREG(0x144 + 8*((x) - 1))
+
 #define S3C_DITHMODE		S3C_LCDREG(0x170)	/* Dithering mode register.	*/
 
 #define S3C_WIN0MAP		S3C_LCDREG(0x180)	/* Window color control	*/
@@ -136,6 +116,7 @@
 #define S3C_WIN2MAP		S3C_LCDREG(0x188)	/* Window color control	*/
 #define S3C_WIN3MAP		S3C_LCDREG(0x18C)	/* Window color control	*/
 #define S3C_WIN4MAP		S3C_LCDREG(0x190)	/* Window color control	*/
+
 #define S3C_WPALCON		S3C_LCDREG(0x1A0)	/* Window Palette control register	*/
 
 #define S3C_TRIGCON		S3C_LCDREG(0x1A4)	/* I80 / RGB Trigger Control Regiter	*/
@@ -180,13 +161,14 @@
 #define S3C_W3PDATAEF		S3C_LCDREG(0x33C)	/* Window 3 Palette Data of the Index E, F	*/
 #define S3C_W4PDATA01		S3C_LCDREG(0x340)	/* Window 3 Palette Data of the Index 0,1	*/
 #define S3C_W4PDATA23		S3C_LCDREG(0x344)	/* Window 3 Palette Data of the Index 2,3	*/
-#endif
 
 #define S3C_TFTPAL2(x)		S3C_LCDREG((0x300 + (x)*4))
 #define S3C_TFTPAL3(x) 		S3C_LCDREG((0x320 + (x)*4))
 #define S3C_TFTPAL4(x)		S3C_LCDREG((0x340 + (x)*4))
 #define S3C_TFTPAL0(x)		S3C_LCDREG((0x400 + (x)*4))
 #define S3C_TFTPAL1(x)		S3C_LCDREG((0x800 + (x)*4))
+
+#define S3C_WIN_PALENTRY(w, i)	S3C_LCDREG(0x400 + 0x400*(w) + 4*(i))
 
 /*--------------------------------------------------------------*/
 /* Video Main Control 0 register - VIDCON0 */
@@ -283,8 +265,7 @@
 #define S3C_WINCONx_ENLOCAL_DMA				(0<<22)
 #define S3C_WINCONx_ENLOCAL				(1<<22)
 #define S3C_WINCONx_ENLOCAL_MASK			(1<<22)
-#define S3C_WINCONx_BUFSEL_0				(0<<20)
-#define S3C_WINCONx_BUFSEL_1				(1<<20)
+#define S3C_WINCONx_BUFSEL(x)				(((x) & 1)<<20)
 #define S3C_WINCONx_BUFSEL_MASK				(1<<20)
 #define S3C_WINCONx_BUFAUTOEN_DISABLE			(0<<19)
 #define S3C_WINCONx_BUFAUTOEN_ENABLE			(1<<19)
@@ -475,45 +456,6 @@
 #define S3C_I80IFCONAx_LCD_WR_SETUP(x) 			(((x)&0xF)<<12)
 #define S3C_I80IFCONAx_LCD_WR_ACT(x)			(((x)&0xF)<<8)
 #define S3C_I80IFCONAx_LCD_WR_HOLD(x)			(((x)&0xF)<<4)
-
-
-/***************************************************************************/
-/*HOST IF registers */
-/* Host I/F A - */
-#define S3C_HOSTIFAREG(x)				((x) + S3C64XX_VA_HOSTIFA)
-#define S3C_HOSTIFAREG_PHYS(x)				((x) + S3C64XX_PA_HOSTIFA)
-
-/* Host I/F B - Modem I/F */
-#define S3C_HOSTIFBREG(x)				((x) + S3C64XX_VA_HOSTIFB)
-#define S3C_HOSTIFBREG_PHYS(x)				((x) + S3C64XX_PA_HOSTIFB)
-
-#define S3C_HOSTIFB_INT2AP				S3C_HOSTIFBREG(0x8000)
-#define S3C_HOSTIFB_INT2MSM				S3C_HOSTIFBREG(0x8004)
-#define S3C_HOSTIFB_MIFCON				S3C_HOSTIFBREG(0x8008)
-#define S3C_HOSTIFB_MIFPCON				S3C_HOSTIFBREG(0x800C)
-#define S3C_HOSTIFB_MSMINTCLR				S3C_HOSTIFBREG(0x8010)
-
-#define S3C_HOSTIFB_MIFCON_INT2MSM_DIS			(0x0<<3)
-#define S3C_HOSTIFB_MIFCON_INT2MSM_EN			(0x1<<3)
-#define S3C_HOSTIFB_MIFCON_INT2AP_DIS			(0x0<<2)
-#define S3C_HOSTIFB_MIFCON_INT2AP_EN			(0x1<<2)
-#define S3C_HOSTIFB_MIFCON_WAKEUP_DIS			(0x0<<1)
-#define S3C_HOSTIFB_MIFCON_WAKEUP_EN			(0x1<<1)
-
-#define S3C_HOSTIFB_MIFPCON_SEL_VSYNC_DIR_OUT		(0x0<<5)
-#define S3C_HOSTIFB_MIFPCON_SEL_VSYNC_DIR_IN		(0x1<<5)
-#define S3C_HOSTIFB_MIFPCON_INT2M_LEVEL_DIS		(0x0<<4)
-#define S3C_HOSTIFB_MIFPCON_INT2M_LEVEL_EN		(0x1<<4)
-#define S3C_HOSTIFB_MIFPCON_SEL_NORMAL			(0x0<<3)
-#define S3C_HOSTIFB_MIFPCON_SEL_BYPASS			(0x1<<3)
-
-#define S3C_HOSTIFB_MIFPCON_SEL_RS0			0
-#define S3C_HOSTIFB_MIFPCON_SEL_RS1			1
-#define S3C_HOSTIFB_MIFPCON_SEL_RS2			2
-#define S3C_HOSTIFB_MIFPCON_SEL_RS3			3
-#define S3C_HOSTIFB_MIFPCON_SEL_RS4			4
-#define S3C_HOSTIFB_MIFPCON_SEL_RS5			5
-#define S3C_HOSTIFB_MIFPCON_SEL_RS6			6
 
 #define S3C_WINCONx_ENLOCAL_POST                    	(1<<22)
 #endif
