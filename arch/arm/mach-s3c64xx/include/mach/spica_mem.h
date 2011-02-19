@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <asm/setup.h>
+#include <mach/spica.h>
 
 #define DRAM_END_ADDR 				(PHYS_OFFSET + PHYS_SIZE)
 
