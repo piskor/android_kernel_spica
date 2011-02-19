@@ -30,6 +30,8 @@
 #include <linux/regulator/fixed.h>
 #include <linux/android_pmem.h>
 #include <linux/reboot.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
 
 #include <video/platform_lcd.h>
 
@@ -46,14 +48,19 @@
 #include <asm/cpu-single.h>
 
 #include <plat/regs-serial.h>
+#include <plat/iic.h>
+#include <plat/fb.h>
+#include <plat/clock.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
+#include <plat/adc.h>
+#include <plat/ts.h>
+
 #include <mach/regs-modem.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-sys.h>
 #include <mach/regs-srom.h>
-#include <plat/iic.h>
-#include <plat/fb.h>
 #include <mach/gpio-cfg.h>
-
 #include <mach/s3c6410.h>
 #include <mach/spica.h>
 #include <mach/spica_mem.h>
@@ -62,11 +69,8 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 #include <mach/system.h>
-#include <plat/clock.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
-#include <plat/adc.h>
-#include <plat/ts.h>
+#include <mach/s3c64xxfb.h>
+#include <video/s6d05a.h>
 
 struct class *sec_class;
 EXPORT_SYMBOL(sec_class);
@@ -83,6 +87,10 @@ EXPORT_SYMBOL(sec_get_param_value);
 extern void (*ftm_enable_usb_sw)(int mode);
 extern void fsa9480_SetAutoSWMode(void);
 extern void fsa9480_MakeRxdLow(void);
+
+/*
+ * UART
+ */
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE
@@ -114,6 +122,10 @@ static struct s3c2410_uartcfg spica_uartcfgs[] __initdata = {
 		.ufcon	     = UFCON,
 	},
 };
+
+/*
+ * I2C
+ */
 
 #if defined(CONFIG_I2C_GPIO)
 static struct i2c_gpio_platform_data i2c3_platdata = {
@@ -163,6 +175,10 @@ static struct platform_device s3c_device_i2c6 = {
 };
 #endif
 
+/*
+ * Platform devices
+ */
+
 #ifdef CONFIG_FB_S3C64XX_S6D04D1
 struct platform_device sec_device_backlight = {
 	.name   = "s6d04d1-backlight",
@@ -206,6 +222,10 @@ struct platform_device sec_device_btsleep = {
 	.id = -1,
 };
 
+/*
+ * Samsung headset connector
+ */
+
 #ifdef CONFIG_SEC_HEADSET
 static struct sec_headset_port sec_headset_port[] = {
         {
@@ -236,6 +256,10 @@ static struct platform_device sec_device_headset = {
         },
 };
 #endif
+
+/*
+ * Android PMEM
+ */
 
 #ifdef CONFIG_ANDROID_PMEM
 static struct android_pmem_platform_data pmem_pdata = {
@@ -377,6 +401,10 @@ static void __init spica_add_mem_devices(void)
 }
 #endif
 
+/*
+ * ADC / TS
+ */
+
 #ifdef CONFIG_S3C64XX_ADCTS
 static struct s3c_adcts_plat_info s3c_adcts_cfgs __initdata = {
 	.channel = {
@@ -417,6 +445,10 @@ static struct s3c_adcts_plat_info s3c_adcts_cfgs __initdata = {
 };
 #endif
 
+/*
+ * Legacy FB
+ */
+
 static struct s3c_fb_pd_win spica_fb_win0 = {
 	.win_mode	= {
 		.pixclock	= 1000000000000ULL /
@@ -442,6 +474,10 @@ static struct s3c_fb_platdata spica_lcd_pdata __initdata = {
 			  VIDCON1_INV_VCLK,
 };
 
+/*
+ * Extended I/O map
+ */
+
 #define S3C64XX_IODESC(x) { \
 	(unsigned long)S3C64XX_VA_##x, \
 	__phys_to_pfn(S3C64XX_PA_##x), \
@@ -456,18 +492,36 @@ static struct map_desc spica_iodesc[] __initdata = {
 	S3C64XX_IODESC(ONENAND0),
 };
 
-/* LCD Controller */
-static struct resource s3c_lcd_resource[] = {
-	[0] = {
-		.start = S3C64XX_PA_FB,
-		.end   = S3C64XX_PA_FB + SZ_1M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_LCD_VSYNC,
-		.end   = IRQ_LCD_SYSTEM,
-		.flags = IORESOURCE_IRQ,
-	}
+/*
+ * Framebuffer
+ */
+
+struct s3c64xxfb_platform_data spica_s3cfb_pdata = {
+	/* Physical size */
+	.width		= 45,
+	.height		= 68,
+	/* Screen resolution */
+	.xres		= 320,
+	.yres		= 480,
+	/* Synchronization */
+	.hfp		= 10,
+	.hsw		= 10,
+	.hbp		= 10,
+	.vfp		= 3,
+	.vsw		= 2,
+	.vbp		= 8,
+	/* Dithering */
+	.dither		= 0x666,
+	/* Vidcon1 */
+	.vidcon1	= S3C_VIDCON1_IVCLK_RISE_EDGE
+			| S3C_VIDCON1_IHSYNC_INVERT
+			| S3C_VIDCON1_IVSYNC_INVERT
+			| S3C_VIDCON1_IVDEN_NORMAL;
+	/* Refresh rate */
+	.refresh_rate	= 60,
+	/* Boot logo */
+	.logo_base	= 0x5d100000,
+	.logo_size	= 320 * 480 * 2,
 };
 
 static u64 s3c_device_lcd_dmamask = 0xffffffffUL;
@@ -475,16 +529,65 @@ static u64 s3c_device_lcd_dmamask = 0xffffffffUL;
 struct platform_device s3c_device_lcd = {
 	.name		  = "s3c-lcd",
 	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_lcd_resource),
-	.resource	  = s3c_lcd_resource,
 	.dev              = {
 		.dma_mask		= &s3c_device_lcd_dmamask,
-		.coherent_dma_mask	= 0xffffffffUL
+		.coherent_dma_mask	= 0xffffffffUL,
+		.platform_data		= &spica_s3cfb_pdata,
 	}
 };
 
-/* Platform devices */
+/*
+ * LCD screen
+ */
+
+static struct spi_gpio_platform_data spica_spi_lcd_pdata = {
+	.sck		= GPIO_LCD_SCLK,
+	.mosi		= GPIO_LCD_SDI,
+	.miso		= GPIO_LCD_ID,
+	.num_chipselect	= 1,
+};
+
+static struct platform_device spica_spi_lcd = {
+	.name		= "spi_gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &spica_spi_lcd_pdata,
+	},
+};
+
+static void spica_lcd_set_power(int power)
+{
+	// Configure PMIC here
+	
+
+	// Hack to eliminate leakage current
+	gpio_set_value(GPIO_LCD_SCLK, 0);
+	gpio_set_value(GPIO_LCD_CS_N, 0);
+}
+
+struct s6d05a_platform_data spica_s6d05a_pdata = {
+	.reset_gpio	= GPIO_LCD_RST_N,
+	.set_power	= spica_lcd_set_power,
+};
+
+static struct spi_board_info spica_spi_board[] = {
+	{
+		.modalias		= "lcd_s6d05a",
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.mode			= SPI_MODE_3,
+		.max_speed_hz		= 25000,
+		.platform_data		= &spica_s6d05a_pdata,
+		.controller_data	= GPIO_LCD_CS_N,
+	},
+};
+
+/*
+ * Platform devices
+ */
+
 static struct platform_device *spica_devices[] __initdata = {
+	&spica_spi_lcd,
 #if defined(CONFIG_S3C_DMA_PL080_SOL)
 	&s3c_device_dma0,
 	&s3c_device_dma1,
@@ -521,7 +624,6 @@ static struct platform_device *spica_devices[] __initdata = {
 	&s3c_device_rotator,
 	&s3c_device_jpeg,
 	&s3c_device_vpp,
-	&sec_device_backlight, 
 #endif
 	&sec_device_dpram,
 	&sec_device_eled,
@@ -548,26 +650,18 @@ static struct s3c_adc_mach_info s3c_adc_platform __initdata = {
 };
 #endif
 
+/*
+ * Machine setup
+ */
+
 static void __init spica_fixup(struct machine_desc *desc,
 		struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks = 1;
-	
+
 	mi->bank[0].start = PHYS_OFFSET;
 	mi->bank[0].size = PHYS_UNRESERVED_SIZE;
 	mi->bank[0].node = 0;
-}
-
-static void __init s3c64xx_allocate_memory_regions(void)
-{
-#if 0
-	void *addr;
-	unsigned long size;
-
-	size = S3C64XX_KERNEL_PANIC_DUMP_SIZE;
-	addr = alloc_bootmem(size);
-	S3C64XX_KERNEL_PANIC_DUMP_ADDR = addr;
-#endif
 }
 
 static void __init spica_map_io(void)
@@ -575,9 +669,6 @@ static void __init spica_map_io(void)
 	s3c64xx_init_io(spica_iodesc, ARRAY_SIZE(spica_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(spica_uartcfgs, ARRAY_SIZE(spica_uartcfgs));
-//	smartq_lcd_mode_set();
-
-//	s3c64xx_gpiolib_init();
 }
 
 static void spica_set_qos(void) 
@@ -595,7 +686,7 @@ static void spica_set_qos(void)
 	
 	iounmap(reg);
 #endif
-} 
+}
 
 /*
  *	Power Off Handler
@@ -932,6 +1023,10 @@ void s3c_reset_uart_cfg_gpio(unsigned char port)
 	}
 }
 EXPORT_SYMBOL(s3c_reset_uart_cfg_gpio);
+
+/*
+ * GPIO setup
+ */
 
 static struct s3c_gpio_config spica_gpio_table[] = {
 	/*
@@ -1282,6 +1377,10 @@ void s3c_config_wakeup_source(void)
 }
 EXPORT_SYMBOL(s3c_config_wakeup_source);
 
+/*
+ * Machine setup
+ */
+
 static void __init spica_machine_init(void)
 {
 	s3c_init_gpio(spica_gpio_table, ARRAY_SIZE(spica_gpio_table));
@@ -1300,6 +1399,8 @@ static void __init spica_machine_init(void)
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+	
+	spi_register_board_info(spica_spi_board, ARRAY_SIZE(spica_spi_board));
 
 	platform_add_devices(spica_devices, ARRAY_SIZE(spica_devices));
 #ifdef CONFIG_ANDROID_PMEM
@@ -1318,9 +1419,13 @@ static void __init spica_machine_init(void)
 	//ftm_enable_usb_sw = spica_ftm_enable_usb_sw;
 }
 
+/*
+ * Machine definition
+ */
+
 #define MACH_TYPE_SPICA	MACH_TYPE_SMDK6410
 MACHINE_START(SPICA, "SPICA")
-	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	/* Maintainer: Currently none */
 	.phys_io	= S3C_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
