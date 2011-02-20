@@ -309,7 +309,7 @@ config BACKLIGHT_PCF50633
 
 config BACKLIGHT_S6D05A
 	tristate "Backlight driver for Samsung S6D05A LCD screen"
-	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
 	help
 	  If you have a LCD screen driven by a Samsung S6D05A controller, say Y
 	  here to enable its driver.

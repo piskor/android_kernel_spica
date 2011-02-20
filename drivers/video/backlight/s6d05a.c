@@ -13,15 +13,10 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/spi/spi.h>
+#include <linux/backlight.h>
 
 #include <video/s6d05a.h>
-
-#include <mach/gpio-cfg.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-lcd.h>
-
-#include <mach/hardware.h>
-#include <mach/spica.h>
 
 #include <mach/gpio.h>
 
@@ -38,7 +33,8 @@
 
 /* Driver data */
 struct s6d05a_data {
-	struct spi_device *spi;
+	struct spi_device	*spi;
+	struct backlight_device	*bl;
 
 	unsigned reset_gpio;
 	void (*set_power)(int);
@@ -109,7 +105,8 @@ static struct s6d05a_command s6d05a_power_off_seq[] = {
  *	Hardware interface
  */
 
-static inline void s6d05a_send_command(s6d05a_data *data, s6d05a_command *cmd)
+static inline void s6d05a_send_command(struct s6d05a_data *data,
+						struct s6d05a_command *cmd)
 {
 	struct spi_message msg;
 	u16 buf[16];
@@ -123,15 +120,15 @@ static inline void s6d05a_send_command(s6d05a_data *data, s6d05a_command *cmd)
 		buf[i + 1] = cmd->parameter[i] | 0x100;
 
 	xfer.len = 2*(cmd->parameters + 1);
-	xfer.delay = cmd->wait;
+	xfer.delay_usecs = cmd->wait;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	spi_sync(data->spi, &msg);	
 }
 
-static void s6d05a_send_command_seq(s6d05a_data *data,
-						s6d05a_command *cmd, int count)
+static void s6d05a_send_command_seq(struct s6d05a_data *data,
+					struct s6d05a_command *cmd, int count)
 {
 	while (--count) 
 		s6d05a_send_command(data, cmd++);
@@ -183,10 +180,10 @@ static void s6d05a_set_power(struct s6d05a_data *data, int power)
 		data->set_power(0);
 	}
 
-	data->state = value;
+	data->state = power;
 }
 
-static void s6d05a_set_backlight(s6d05a_data *data, u8 value)
+static void s6d05a_set_backlight(struct s6d05a_data *data, u8 value)
 {
 	struct s6d05a_command cmd = { WRDISBV, 1, { value, }, 0 };
 
@@ -240,8 +237,8 @@ static struct backlight_properties s6d05a_bl_props = {
 static int __devinit s6d05a_probe(struct spi_device *spi)
 {
 	struct s6d05a_data *data;
-	struct s6d05a_pdata *pdata = spi->dev.platform_data;
-	struct lcd_device *ld;
+	struct s6d05a_platform_data *pdata = spi->dev.platform_data;
+	struct backlight_device *bl;
 	int ret = 0;
 
 	if (!pdata || !pdata->set_power)
@@ -257,8 +254,8 @@ static int __devinit s6d05a_probe(struct spi_device *spi)
 		goto err;
 
 	/* Allocate memory for driver data */
-	st = kzalloc(sizeof(struct s6d05a_data), GFP_KERNEL);
-	if (st == NULL) {
+	data = kzalloc(sizeof(struct s6d05a_data), GFP_KERNEL);
+	if (data == NULL) {
 		dev_err(&spi->dev, "No memory for device state\n");
 		ret = -ENOMEM;
 		goto err;
@@ -268,7 +265,7 @@ static int __devinit s6d05a_probe(struct spi_device *spi)
 	bl = backlight_device_register(dev_driver_string(&spi->dev),
 			&spi->dev, data, &s6d05a_bl_ops, &s6d05a_bl_props);
 	if (IS_ERR(bl)) {
-		dev_err(&client->dev, "Failed to register backlight\n");
+		dev_err(&spi->dev, "Failed to register backlight\n");
 		ret = PTR_ERR(bl);
 		goto err2;
 	}
@@ -319,6 +316,24 @@ static int __devexit s6d05a_remove(struct spi_device *spi)
 	backlight_device_unregister(data->bl);
 	gpio_free(data->reset_gpio);
 	kfree(data);
+
+	return 0;
+}
+
+static int s6d05a_suspend(struct spi_device *spi, pm_message_t mesg)
+{
+	struct s6d05a_data *data = dev_get_drvdata(&spi->dev);
+
+	s6d05a_set_power(data, 0);
+
+	return 0;
+}
+
+static int s6d05a_resume(struct spi_device *spi)
+{
+	struct s6d05a_data *data = dev_get_drvdata(&spi->dev);	
+
+	s6d05a_bl_update_status(data->bl);
 
 	return 0;
 }
