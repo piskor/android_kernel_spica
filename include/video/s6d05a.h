@@ -48,7 +48,7 @@ struct s6d05a_command {
 };
 
 /* Platform data */
-struct s6d05a_pdata {
+struct s6d05a_platform_data {
 	/* Required: Reset GPIO and power control function */
 	unsigned reset_gpio;
 	void (*set_power)(int);
