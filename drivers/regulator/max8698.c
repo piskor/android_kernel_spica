@@ -113,12 +113,8 @@ static const struct voltage_map_desc *ldo_voltage_map[] = {
 	&ldo45679_voltage_map_desc,	/* LDO7 */
 	&ldo8_voltage_map_desc,		/* LDO8 */
 	&ldo45679_voltage_map_desc,	/* LDO9 */
-	&buck12_voltage_map_desc,	/* DVSARM1 */
-	&buck12_voltage_map_desc,	/* DVSARM2 */
-	&buck12_voltage_map_desc,	/* DVSARM3 */
-	&buck12_voltage_map_desc,	/* DVSARM4 */
-	&buck12_voltage_map_desc,	/* DVSINT1 */
-	&buck12_voltage_map_desc,	/* DVSINT2 */
+	&buck12_voltage_map_desc,	/* BUCK1 */
+	&buck12_voltage_map_desc,	/* BUCK2 */
 	&buck3_voltage_map_desc,	/* BUCK3 */
 };
 
@@ -181,17 +177,9 @@ static int max8698_get_enable_register(struct regulator_dev *rdev,
 		*reg = MAX8698_REG_ONOFF2;
 		*shift = 7 - (ldo - MAX8698_LDO6);
 		break;
-	case MAX8698_DVSARM1 ... MAX8698_DVSARM4:
+	case MAX8698_BUCK1 ... MAX8698_BUCK3:
 		*reg = MAX8698_REG_ONOFF1;
-		*shift = 7;
-		break;
-	case MAX8698_DVSINT1 ... MAX8698_DVSINT2:
-		*reg = MAX8698_REG_ONOFF1;
-		*shift = 6;
-		break;
-	case MAX8698_BUCK3:
-		*reg = MAX8698_REG_ONOFF1;
-		*shift = 5;
+		*shift = 7 - (ldo - MAX8698_BUCK1);
 		break;
 	default:
 		return -EINVAL;
@@ -264,26 +252,12 @@ static int max8698_get_voltage_register(struct regulator_dev *rdev,
 	case MAX8698_LDO9:
 		reg = MAX8698_REG_LDO9;
 		break;
-	case MAX8698_DVSARM1:
-	case MAX8698_DVSARM2:
+	case MAX8698_BUCK1:
 		reg = MAX8698_REG_DVSARM12;
 		mask = 0xf;
-		if (ldo == MAX8698_DVSARM2)
-			shift = 4;
-		break;
-	case MAX8698_DVSARM3:
-	case MAX8698_DVSARM4:
-		reg = MAX8698_REG_DVSARM34;
-		mask = 0xf;
-		if (ldo == MAX8698_DVSARM4)
-			shift = 4;
-		break;
-	case MAX8698_DVSINT1:
-	case MAX8698_DVSINT2:
+	case MAX8698_BUCK2:
 		reg = MAX8698_REG_DVSINT12;
 		mask = 0xf;
-		if (ldo == MAX8698_DVSINT2)
-			shift = 4;
 	case MAX8698_BUCK3:
 		reg = MAX8698_REG_BUCK3;
 		break;
@@ -322,11 +296,10 @@ static int max8698_set_voltage(struct regulator_dev *rdev,
 				int min_uV, int max_uV)
 {
 	struct max8698_data *max8698 = rdev_get_drvdata(rdev);
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	int previous_vol = 0;
 	const struct voltage_map_desc *desc;
+	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
 	int ldo = max8698_get_ldo(rdev);
-	int reg, shift = 0, mask, ret;
+	int reg = 0, shift = 0, mask = 0, ret;
 	int i = 0;
 
 	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
@@ -350,27 +323,7 @@ static int max8698_set_voltage(struct regulator_dev *rdev,
 	if (ret)
 		return ret;
 
-	/* wait for RAMP_UP_DELAY if rdev is BUCK1/2 */
-	if (ldo >= MAX8698_DVSARM1 && ldo <= MAX8698_DVSINT2) {
-		int difference, rate;
-		u8 val = 0;
-
-		/* Read ramp rate */
-		max8698_i2c_device_read(max8698, MAX8698_REG_ADISCHG_EN2, &val);
-		rate = (val & 0xf) + 1;
-
-		previous_vol = max8698_get_voltage(rdev);
-
-		ret = max8698_i2c_device_update(max8698, reg, i<<shift, mask<<shift);
-
-		difference = desc->min + desc->step*i - previous_vol/1000;
-		if (difference < 0)
-			difference = -difference;
-
-		udelay(difference / rate);
-	}
-
-	return ret;
+	return max8698_i2c_device_update(max8698, reg, i<<shift, mask<<shift);
 }
 
 static struct regulator_ops max8698_regulator_ops = {
@@ -380,6 +333,74 @@ static struct regulator_ops max8698_regulator_ops = {
 	.disable		= max8698_ldo_disable,
 	.get_voltage		= max8698_get_voltage,
 	.set_voltage		= max8698_set_voltage,
+	.set_suspend_enable	= max8698_ldo_enable,
+	.set_suspend_disable	= max8698_ldo_disable,
+};
+
+static int max8698_set_buck12_voltage(struct regulator_dev *rdev,
+				int min_uV, int max_uV)
+{
+	struct max8698_data *max8698 = rdev_get_drvdata(rdev);
+	const struct voltage_map_desc *desc;
+	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
+	int previous_vol = 0;
+	int ldo = max8698_get_ldo(rdev), i = 0, ret;
+	int difference, rate;
+	u8 val = 0;
+
+	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
+		return -EINVAL;
+
+	desc = ldo_voltage_map[ldo];
+	if (desc == NULL)
+		return -EINVAL;
+
+	if (max_vol < desc->min || min_vol > desc->max)
+		return -EINVAL;
+
+	while (desc->min + desc->step*i < min_vol &&
+	       desc->min + desc->step*i < desc->max)
+		i++;
+
+	if (desc->min + desc->step*i > max_vol)
+		return -EINVAL;
+
+	/* Read ramp rate */
+	max8698_i2c_device_read(max8698, MAX8698_REG_ADISCHG_EN2, &val);
+	rate = (val & 0xf) + 1;
+
+	previous_vol = max8698_get_voltage(rdev);
+
+	switch (ldo) {
+	case MAX8698_BUCK1:
+		max8698_i2c_device_update(max8698,
+				MAX8698_REG_DVSARM12, (i << 4) | i, 0xff);
+		max8698_i2c_device_update(max8698,
+				MAX8698_REG_DVSARM34, (i << 4) | i, 0xff);
+		break;
+	case MAX8698_BUCK2:
+		max8698_i2c_device_update(max8698,
+				MAX8698_REG_DVSINT12, (i << 4) | i, 0xff);
+		break;
+	}
+
+	difference = desc->min + desc->step*i - previous_vol/1000;
+	if (difference < 0)
+		difference = -difference;
+
+	/* wait for ramp delay */
+	udelay(difference / rate);
+
+	return ret;
+}
+
+static struct regulator_ops max8698_regulator_buck12_ops = {
+	.list_voltage		= max8698_list_voltage,
+	.is_enabled		= max8698_ldo_is_enabled,
+	.enable			= max8698_ldo_enable,
+	.disable		= max8698_ldo_disable,
+	.get_voltage		= max8698_get_voltage,
+	.set_voltage		= max8698_set_buck12_voltage,
 	.set_suspend_enable	= max8698_ldo_enable,
 	.set_suspend_disable	= max8698_ldo_disable,
 };
@@ -434,39 +455,15 @@ static struct regulator_desc regulators[] = {
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
 	}, {
-		.name		= "DVSARM1",
-		.id		= MAX8698_DVSARM1,
-		.ops		= &max8698_regulator_ops,
+		.name		= "BUCK1",
+		.id		= MAX8698_BUCK1,
+		.ops		= &max8698_regulator_buck12_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
 	}, {
-		.name		= "DVSARM2",
-		.id		= MAX8698_DVSARM2,
-		.ops		= &max8698_regulator_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-	}, {
-		.name		= "DVSARM3",
-		.id		= MAX8698_DVSARM3,
-		.ops		= &max8698_regulator_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-	}, {
-		.name		= "DVSARM4",
-		.id		= MAX8698_DVSARM4,
-		.ops		= &max8698_regulator_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-	}, {
-		.name		= "DVSINT1",
-		.id		= MAX8698_DVSINT1,
-		.ops		= &max8698_regulator_ops,
-		.type		= REGULATOR_VOLTAGE,
-		.owner		= THIS_MODULE,
-	}, {
-		.name		= "DVSINT2",
-		.id		= MAX8698_DVSINT2,
-		.ops		= &max8698_regulator_ops,
+		.name		= "BUCK2",
+		.id		= MAX8698_BUCK2,
+		.ops		= &max8698_regulator_buck12_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
 	}, {
