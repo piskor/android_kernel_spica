@@ -31,12 +31,55 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/max8698.h>
 
+/*
+ * Driver data
+ */
+
 struct max8698_data {
 	struct device		*dev;
-	struct max8698_dev	*iodev;
+	struct i2c_client	*i2c_client;
 	int			num_regulators;
 	struct regulator_dev	**rdev;
 };
+
+/*
+ * I2C Interface
+ */
+
+static int max8698_i2c_device_read(struct max8698_data *max8698, u8 reg, u8 *dest)
+{
+	struct i2c_client *client = max8698->i2c_client;
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(client, reg);
+	if (ret < 0)
+		return ret;
+
+	ret &= 0xff;
+	*dest = ret;
+	return 0;
+}
+
+static int max8698_i2c_device_update(struct max8698_data *max8698, u8 reg,
+				     u8 val, u8 mask)
+{
+	struct i2c_client *client = max8698->i2c_client;
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(client, reg);
+	if (ret >= 0) {
+		u8 old_val = ret & 0xff;
+		u8 new_val = (val & mask) | (old_val & (~mask));
+		ret = i2c_smbus_write_byte_data(client, reg, new_val);
+		if (ret >= 0)
+			ret = 0;
+	}
+	return ret;
+}
+
+/*
+ * Voltage regulator
+ */
 
 struct voltage_map_desc {
 	int min;
@@ -120,7 +163,7 @@ enum {
 	MAX8698_REG_LDO6,
 	MAX8698_REG_LDO7,
 	MAX8698_REG_LDO8_BKCHR,
-	MAX8698_REG_LD09,
+	MAX8698_REG_LDO9,
 	MAX8698_REG_LBCNFG
 };
 
@@ -167,7 +210,7 @@ static int max8698_ldo_is_enabled(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	ret = max8698_read_reg(max8698->iodev, reg, &val);
+	ret = max8698_i2c_device_read(max8698, reg, &val);
 	if (ret)
 		return ret;
 
@@ -183,7 +226,7 @@ static int max8698_ldo_enable(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	return max8698_update_reg(max8698->iodev, reg, 1<<shift, 1<<shift);
+	return max8698_i2c_device_update(max8698, reg, 1<<shift, 1<<shift);
 }
 
 static int max8698_ldo_disable(struct regulator_dev *rdev)
@@ -195,7 +238,7 @@ static int max8698_ldo_disable(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	return max8698_update_reg(max8698->iodev, reg, 0, 1<<shift);
+	return max8698_i2c_device_update(max8698, reg, 0, 1<<shift);
 }
 
 static int max8698_get_voltage_register(struct regulator_dev *rdev,
@@ -219,7 +262,7 @@ static int max8698_get_voltage_register(struct regulator_dev *rdev,
 		shift = 4;
 		break;
 	case MAX8698_LDO9:
-		reg = MAX8698_REG_LDO10_LDO11;
+		reg = MAX8698_REG_LDO9;
 		break;
 	case MAX8698_DVSARM1:
 	case MAX8698_DVSARM2:
@@ -232,14 +275,14 @@ static int max8698_get_voltage_register(struct regulator_dev *rdev,
 	case MAX8698_DVSARM4:
 		reg = MAX8698_REG_DVSARM34;
 		mask = 0xf;
-		if (ldo = MAX8698_DVSARM4)
+		if (ldo == MAX8698_DVSARM4)
 			shift = 4;
 		break;
 	case MAX8698_DVSINT1:
 	case MAX8698_DVSINT2:
 		reg = MAX8698_REG_DVSINT12;
 		mask = 0xf;
-		if (ldo = MAX8698_DVSINT2)
+		if (ldo == MAX8698_DVSINT2)
 			shift = 4;
 	case MAX8698_BUCK3:
 		reg = MAX8698_REG_BUCK3;
@@ -265,7 +308,7 @@ static int max8698_get_voltage(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	ret = max8698_read_reg(max8698->iodev, reg, &val);
+	ret = max8698_i2c_device_read(max8698, reg, &val);
 	if (ret)
 		return ret;
 
@@ -285,8 +328,6 @@ static int max8698_set_voltage(struct regulator_dev *rdev,
 	int ldo = max8698_get_ldo(rdev);
 	int reg, shift = 0, mask, ret;
 	int i = 0;
-	u8 val;
-	bool en_ramp = false;
 
 	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
 		return -EINVAL;
@@ -312,14 +353,15 @@ static int max8698_set_voltage(struct regulator_dev *rdev,
 	/* wait for RAMP_UP_DELAY if rdev is BUCK1/2 */
 	if (ldo >= MAX8698_DVSARM1 && ldo <= MAX8698_DVSINT2) {
 		int difference, rate;
+		u8 val = 0;
 
 		/* Read ramp rate */
-		max8698_read_reg(max8698->iodev, MAX8698_REG_ADISCHG_EN2, &val);
+		max8698_i2c_device_read(max8698, MAX8698_REG_ADISCHG_EN2, &val);
 		rate = (val & 0xf) + 1;
 
 		previous_vol = max8698_get_voltage(rdev);
 
-		ret = max8698_update_reg(max8698->iodev, reg, i<<shift, mask<<shift);
+		ret = max8698_i2c_device_update(max8698, reg, i<<shift, mask<<shift);
 
 		difference = desc->min + desc->step*i - previous_vol/1000;
 		if (difference < 0)
@@ -436,16 +478,20 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-static __devinit int max8698_pmic_probe(struct platform_device *pdev)
+/*
+ * I2C driver
+ */
+
+static int max8698_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
-	struct max8698_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8698_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8698_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct regulator_dev **rdev;
 	struct max8698_data *max8698;
 	int i, ret, size;
 
 	if (!pdata) {
-		dev_err(pdev->dev.parent, "No platform init data supplied\n");
+		dev_err(&i2c->dev, "No platform init data supplied\n");
 		return -ENODEV;
 	}
 
@@ -461,10 +507,10 @@ static __devinit int max8698_pmic_probe(struct platform_device *pdev)
 	}
 
 	rdev = max8698->rdev;
-	max8698->dev = &pdev->dev;
-	max8698->iodev = iodev;
+	max8698->dev = &i2c->dev;
+	max8698->i2c_client = i2c;
 	max8698->num_regulators = pdata->num_regulators;
-	platform_set_drvdata(pdev, max8698);
+	i2c_set_clientdata(i2c, max8698);
 
 	for (i = 0; i < pdata->num_regulators; i++) {
 		const struct voltage_map_desc *desc;
@@ -500,9 +546,9 @@ err:
 	return ret;
 }
 
-static int __devexit max8698_pmic_remove(struct platform_device *pdev)
+static int __devexit max8698_remove(struct i2c_client *i2c)
 {
-	struct max8698_data *max8698 = platform_get_drvdata(pdev);
+	struct max8698_data *max8698 = i2c_get_clientdata(i2c);
 	struct regulator_dev **rdev = max8698->rdev;
 	int i;
 
@@ -516,26 +562,33 @@ static int __devexit max8698_pmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver max8698_pmic_driver = {
+static const struct i2c_device_id max8698_i2c_id[] = {
+       { "max8698", 0 },
+       { }
+};
+MODULE_DEVICE_TABLE(i2c, max8698_i2c_id);
+
+static struct i2c_driver max8698_i2c_driver = {
 	.driver = {
-		.name = "max8698-pmic",
-		.owner = THIS_MODULE,
+		   .name = "max8698",
+		   .owner = THIS_MODULE,
 	},
-	.probe = max8698_pmic_probe,
-	.remove = max8698_pmic_remove,
+	.probe = max8698_probe,
+	.remove = max8698_remove,
+	.id_table = max8698_i2c_id,
 };
 
-static int __init max8698_pmic_init(void)
+static int __init max8698_init(void)
 {
-	return platform_driver_register(&max8698_pmic_driver);
+	return i2c_add_driver(&max8698_i2c_driver);
 }
-subsys_initcall(max8698_pmic_init);
+module_init(max8698_init);
 
-static void __exit max8698_pmic_exit(void)
+static void __exit max8698_exit(void)
 {
-	platform_driver_unregister(&max8698_pmic_driver);
+	i2c_del_driver(&max8698_i2c_driver);
 }
-module_exit(max8698_pmic_exit);
+module_exit(max8698_exit);
 
 MODULE_DESCRIPTION("Maxim 8698 voltage regulator driver");
 MODULE_AUTHOR("Tomasz Figa <tomasz.figa at gmail.com>");
