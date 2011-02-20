@@ -41,34 +41,13 @@ extern int s3c6410_timer_setup (int channel, int usec, unsigned long g_tcnt, uns
 #define MHZ (1000 * 1000)
 #endif
 
-#define ON 	1
-#define OFF	0
-
 #define S3C_FB_OUTPUT_RGB	0
 #define S3C_FB_OUTPUT_TV	1
 #define S3C_FB_OUTPUT_I80_LDI0	2
 #define S3C_FB_OUTPUT_I80_LDI1	3
 
 #define S3C_FB_PALETTE_BUFF_CLEAR	(0x80000000)	/* entry is clear/invalid */
-#define S3C_FB_COLOR_KEY_DIR_BG 	0
-#define S3C_FB_COLOR_KEY_DIR_FG 	1
-#define S3C_FB_DEFAULT_BACKLIGHT_LEVEL	93
-#define S3C_FB_MAX_DISPLAY_OFFSET	200
-#define S3C_FB_DEFAULT_DISPLAY_OFFSET	100
-#define S3C_FB_MAX_ALPHA_LEVEL		0xf
-#define S3C_FB_MAX_BRIGHTNESS		90
-#define S3C_FB_DEFAULT_BRIGHTNESS	4
-#define S3C_FB_VS_SET 			12
-#define S3C_FB_VS_MOVE_LEFT		15
-#define S3C_FB_VS_MOVE_RIGHT		16
-#define S3C_FB_VS_MOVE_UP		17
-#define S3C_FB_VS_MOVE_DOWN		18
-#define S3CFB_ALPHA_MODE_PLANE		0
-#define S3CFB_ALPHA_MODE_PIXEL		1
-
-#ifdef CONFIG_FB_S3C_SHOW_LOGO
-	#define S3C_FB_DISPLAY_LOGO
-#endif
+#define S3C_FB_MAX_ALPHA_LEVEL		(0xF)
 
 #if defined(CONFIG_MACH_SPICA)
 	#define S3C_FB_USE_CLK_DIRECTED // KSS_2009-09-03 : Change LCD Dot Clk
@@ -127,18 +106,10 @@ struct s3c_fb_info {
 	unsigned int		map_size;	/* size */
 
 	unsigned int		palette_ready;
-	unsigned int		fb_change_ready;
-
-	struct early_suspend	early_suspend;
 
 	/* keep these registers in case we need to re-write palette */
 	unsigned int		palette_buffer[256];
 	unsigned int		pseudo_pal[16];
-
-	unsigned int		lcd_offset_x;
-	unsigned int		lcd_offset_y;
-	unsigned int		next_fb_info_change_req;
-	s3c_fb_next_info_t	next_fb_info;
 
 	/* window spcific state */
 	u32			wincon;
@@ -189,7 +160,7 @@ struct s3c_fb_drvdata {
 	int vs_offset;
 	int palette_win;
 
-	waitqueue_head_t vsync_wait_queue;
+	wait_queue_head_t vsync_wait_queue;
 	unsigned long vsync_count;
 
 	/* FIMD registers */

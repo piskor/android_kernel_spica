@@ -93,6 +93,7 @@
 
 #define S3C_VIDWADD1B0(x)	S3C_LCDREG(0x0D0 + 8*(x))
 #define S3C_VIDWADD1B1(x)	S3C_LCDREG(0x0D4 + 8*(x))
+#define S3C_VIDWADD2(x)		S3C_LCDREG(0x100 + 4*(x))
 
 #define S3C_VIDINTCON0		S3C_LCDREG(0x130)	/* Indicate the Video interrupt control register */
 #define S3C_VIDINTCON1		S3C_LCDREG(0x134) 	/* Video Interrupt Pending register */
