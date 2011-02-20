@@ -27,7 +27,8 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/smsc911x.h>
-#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/max8698.h>
 #include <linux/android_pmem.h>
 #include <linux/reboot.h>
 #include <linux/spi/spi.h>
@@ -68,7 +69,6 @@
 #include <mach/regs-gpio-memport.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <mach/system.h>
 #include <mach/s3c64xxfb.h>
 #include <video/s6d05a.h>
 #include <mach/regs-lcd.h>
@@ -125,80 +125,322 @@ static struct s3c2410_uartcfg spica_uartcfgs[] __initdata = {
 };
 
 /*
- * I2C
+ * I2C devices
  */
 
-#if defined(CONFIG_I2C_GPIO)
-static struct i2c_gpio_platform_data i2c3_platdata = {
+/* I2C 0 (hardware) -	FSA9480 (USB transceiver),
+ *			BMA023 (accelerometer),
+ * 			AK8973B (magnetometer) */
+static struct s3c2410_platform_i2c spica_misc_i2c __initdata = {
+	.flags		= 0,
+	.slave_addr	= 0x10,
+	.frequency	= 100*1000,
+	.sda_delay	= 100,
+	.bus_num	= 0,
+};
+
+static struct i2c_board_info spica_misc_i2c_devs[] __initdata = {
+	{
+		.type		= "fsa9480",
+		.addr		= 0x25,
+		.irq		= IRQ_EINT(9),
+	},
+	{
+		.type		= "bma023",
+		.addr		= 0x38,
+		.irq		= IRQ_EINT(3),
+	},
+	{
+		.type		= "ak8973",
+		.addr		= 0x1c,
+	},
+};
+
+/* I2C 1 (hardware) -	XXX (camera sensor) */
+static struct s3c2410_platform_i2c spica_cam_i2c __initdata = {
+	.flags		= 0,
+	.slave_addr	= 0x10,
+	.frequency	= 100*1000,
+	.sda_delay	= 100,
+	.bus_num	= 1,
+};
+
+static struct i2c_board_info spica_cam_i2c_devs[] __initdata = {
+	/* Unknown yet */
+};
+
+/* I2C 2 (GPIO) -	MAX8698EWO-T (voltage regulator) */
+static struct i2c_gpio_platform_data spica_pmic_i2c_pdata = {
 	.sda_pin		= GPIO_PWR_I2C_SDA,
 	.scl_pin		= GPIO_PWR_I2C_SCL,
-	.udelay			= 2,	/* 250KHz */		
+	.udelay			= 2, /* 250KHz */
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
 	.scl_is_output_only	= 1,
 };
 
-static struct platform_device s3c_device_i2c3 = {
-	.name				= "i2c-gpio",
-	.id					= 3,
-	.dev.platform_data	= &i2c3_platdata,
+static struct platform_device spica_pmic_i2c = {
+	.name			= "i2c-gpio",
+	.id			= 2,
+	.dev.platform_data	= &spica_pmic_i2c_pdata,
 };
 
-static struct i2c_gpio_platform_data i2c5_platdata = {
+static struct regulator_init_data spica_ldo2_data = {
+	.constraints	= {
+		.name		= "VAP_ALIVE_1.2V",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+		.state_mem	= {
+			.enabled = 1,
+		},
+	},
+};
+
+static struct regulator_consumer_supply ldo3_consumer[] = {
+	REGULATOR_SUPPLY("pd_io", "s3c-usbgadget")
+};
+
+static struct regulator_init_data spica_ldo3_data = {
+	.constraints	= {
+		.name		= "VAP_OTGI_1.2V",
+		.min_uV		= 1200000,
+		.max_uV		= 1200000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(ldo3_consumer),
+	.consumer_supplies	= ldo3_consumer,
+};
+
+static struct regulator_init_data spica_ldo4_data = {
+	.constraints	= {
+		.name		= "VLED_3.3V",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+};
+
+static struct regulator_init_data spica_ldo5_data = {
+	.constraints	= {
+		.name		= "VTF_3.0V",
+		.min_uV		= 3000000,
+		.max_uV		= 3000000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+};
+
+static struct regulator_init_data spica_ldo6_data = {
+	.constraints	= {
+		.name		= "VLCD_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+};
+
+static struct regulator_consumer_supply ldo7_consumer[] = {
+	{	.supply	= "vlcd", },
+};
+
+static struct regulator_init_data spica_ldo7_data = {
+	.constraints	= {
+		.name		= "VLCD_3.0V",
+		.min_uV		= 3000000,
+		.max_uV		= 3000000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(ldo7_consumer),
+	.consumer_supplies	= ldo7_consumer,
+};
+
+static struct regulator_consumer_supply ldo8_consumer[] = {
+	REGULATOR_SUPPLY("pd_core", "s3c-usbgadget")
+};
+
+static struct regulator_init_data spica_ldo8_data = {
+	.constraints	= {
+		.name		= "VAP_OTG_3.3V",
+		.min_uV		= 3300000,
+		.max_uV		= 3300000,
+		.apply_uV	= 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.disabled = 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(ldo8_consumer),
+	.consumer_supplies	= ldo8_consumer,
+};
+
+static struct regulator_init_data spica_ldo9_data = {
+	.constraints	= {
+		.name		= "VAP_SYS_3.0V",
+		.min_uV		= 3000000,
+		.max_uV		= 3000000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+	},
+};
+
+static struct regulator_consumer_supply buck1_consumer[] = {
+	{	.supply	= "vddarm", },
+};
+
+static struct regulator_init_data spica_buck1_data = {
+	.constraints	= {
+		.name		= "VDD_ARM",
+		.min_uV		= 750000,
+		.max_uV		= 1500000,
+		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.uV	= 1250000,
+			.mode	= REGULATOR_MODE_NORMAL,
+			.disabled = 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(buck1_consumer),
+	.consumer_supplies	= buck1_consumer,
+};
+
+static struct regulator_consumer_supply buck2_consumer[] = {
+	{	.supply	= "vddint", },
+};
+
+static struct regulator_init_data spica_buck2_data = {
+	.constraints	= {
+		.name		= "VAP_MEM_1.8V",
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+		.state_mem	= {
+			.uV	= 1800000,
+			.mode	= REGULATOR_MODE_NORMAL,
+			.disabled = 1,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(buck2_consumer),
+	.consumer_supplies	= buck2_consumer,
+};
+
+static struct regulator_init_data spica_buck3_data = {
+	.constraints	= {
+		.name		= "VAP_CORE_1.3V",
+		.min_uV		= 1300000,
+		.max_uV		= 1300000,
+		.apply_uV	= 1,
+		.always_on	= 1,
+	},
+};
+
+static struct max8698_regulator_data spica_regulators[] = {
+	{ MAX8698_LDO2,  &spica_ldo2_data },
+	{ MAX8698_LDO3,  &spica_ldo3_data },
+	{ MAX8698_LDO4,  &spica_ldo4_data },
+	{ MAX8698_LDO5,  &spica_ldo5_data },
+	{ MAX8698_LDO6,  &spica_ldo6_data },
+	{ MAX8698_LDO7,  &spica_ldo7_data },
+	{ MAX8698_LDO8,  &spica_ldo8_data },
+	{ MAX8698_LDO9,  &spica_ldo9_data },
+	{ MAX8698_BUCK1, &spica_buck1_data },
+	{ MAX8698_BUCK2, &spica_buck2_data },
+	{ MAX8698_BUCK3, &spica_buck3_data },
+};
+
+static struct max8698_platform_data spica_max8698_pdata = {
+	.regulators	= spica_regulators,
+	.num_regulators	= ARRAY_SIZE(spica_regulators),
+};
+
+static struct i2c_board_info spica_pmic_i2c_devs[] __initdata = {
+	{
+		.type		= "max8698",
+		.addr		= 0x66,
+		.platform_data	= &spica_max8698_pdata,
+	},
+};
+
+/* I2C 3 (GPIO) -	MAX9877AERP-T (audio amplifier),
+ *			AK4671EG-L (audio codec) */
+static struct i2c_gpio_platform_data spica_audio_i2c_pdata = {
 	.sda_pin		= GPIO_FM_I2C_SDA,
 	.scl_pin		= GPIO_FM_I2C_SCL,
-	.udelay			= 2,	/* 250KHz */		
+	.udelay			= 2, /* 250KHz */
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
 	.scl_is_output_only	= 1,
 };
 
-static struct platform_device s3c_device_i2c5 = {
-	.name				= "i2c-gpio",
-	.id					= 5,
-	.dev.platform_data	= &i2c5_platdata,
+static struct platform_device spica_audio_i2c = {
+	.name			= "i2c-gpio",
+	.id			= 3,
+	.dev.platform_data	= &spica_audio_i2c_pdata,
 };
 
-static struct i2c_gpio_platform_data i2c6_platdata = {
+static struct i2c_board_info spica_audio_i2c_devs[] __initdata = {
+	{
+		.type		= "ak4671",
+		.addr		= 0x12,
+	},
+	{
+		.type		= "max9877",
+		.addr		= 0x4d,
+	},
+};
+
+/* I2C 4 (GPIO) -	AT42QT5480-CU (touchscreen controller) */
+static struct i2c_gpio_platform_data spica_touch_i2c_pdata = {
 	.sda_pin		= GPIO_TOUCH_I2C_SDA,
 	.scl_pin		= GPIO_TOUCH_I2C_SCL,
-	.udelay			= 6,	/* KSS : Change I2C speed to avoid error in TSP */
+	.udelay			= 6, /* 83,3KHz */
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
 	.scl_is_output_only	= 0,
-//	.scl_is_output_only	= 1,
 };
 
-static struct platform_device s3c_device_i2c6 = {
-	.name				= "i2c-gpio",
-	.id					= 6,
-	.dev.platform_data	= &i2c6_platdata,
+static struct platform_device spica_touch_i2c = {
+	.name			= "i2c-gpio",
+	.id			= 4,
+	.dev.platform_data	= &spica_touch_i2c_pdata,
 };
-#endif
+
+static struct i2c_board_info spica_touch_i2c_devs[] __initdata = {
+	{
+		.type		= "qt5480",
+		.addr		= 0x30,
+	},
+};
 
 /*
  * Platform devices
  */
 
-#ifdef CONFIG_FB_S3C64XX_S6D04D1
-struct platform_device sec_device_backlight = {
-	.name   = "s6d04d1-backlight",
-	.id     = -1,
-};
-#elif defined(CONFIG_FB_S3C64XX_S6D05A)
-struct platform_device sec_device_backlight = {
-	.name   = "s6d05a-backlight",
-	.id     = -1,
-};
-#endif
-
 struct platform_device sec_device_dpram = {
 	.name	= "dpram-device",
-	.id		= -1,
-};
-
-struct platform_device sec_device_ts = {
-	.name	= "qt5480-ts",
 	.id		= -1,
 };
 
@@ -447,7 +689,7 @@ static struct s3c_adcts_plat_info s3c_adcts_cfgs __initdata = {
 #endif
 
 /*
- * Legacy FB
+ * Legacy FB (s3c-fb driver)
  */
 
 static struct s3c_fb_pd_win spica_fb_win0 = {
@@ -476,25 +718,7 @@ static struct s3c_fb_platdata spica_lcd_pdata __initdata = {
 };
 
 /*
- * Extended I/O map
- */
-
-#define S3C64XX_IODESC(x) { \
-	(unsigned long)S3C64XX_VA_##x, \
-	__phys_to_pfn(S3C64XX_PA_##x), \
-	S3C64XX_SZ_##x, MT_DEVICE\
-	}
-
-static struct map_desc spica_iodesc[] __initdata = {
-	S3C64XX_IODESC(FB),
-	S3C64XX_IODESC(SROM),
-	S3C64XX_IODESC(HOSTIFA),
-	S3C64XX_IODESC(HOSTIFB),
-	S3C64XX_IODESC(ONENAND0),
-};
-
-/*
- * Framebuffer
+ * Framebuffer (s3c64xxfb driver)
  */
 
 struct s3c64xxfb_platform_data spica_s3cfb_pdata = {
@@ -558,12 +782,18 @@ static struct platform_device spica_spi_lcd = {
 
 static void spica_lcd_set_power(int power)
 {
-	// Configure PMIC here
-	
+	if (power) {
+		// Fixup for leakage current elimination hack
+		gpio_set_value(GPIO_LCD_CS_N, 1);
 
-	// Hack to eliminate leakage current
-	gpio_set_value(GPIO_LCD_SCLK, 0);
-	gpio_set_value(GPIO_LCD_CS_N, 0);
+		// Configure PMIC here
+	} else {
+		// Configure PMIC here
+
+		// Hack to eliminate leakage current
+		gpio_set_value(GPIO_LCD_SCLK, 0);
+		gpio_set_value(GPIO_LCD_CS_N, 0);
+	}
 }
 
 struct s6d05a_platform_data spica_s6d05a_pdata = {
@@ -579,9 +809,22 @@ static struct spi_board_info spica_spi_board[] = {
 		.mode			= SPI_MODE_3,
 		.max_speed_hz		= 25000,
 		.platform_data		= &spica_s6d05a_pdata,
-		.controller_data	= GPIO_LCD_CS_N,
+		.controller_data	= (void *)GPIO_LCD_CS_N,
 	},
 };
+
+/*
+ * ADC platform data
+ */
+
+#if 0 /*def CONFIG_S3C_ADC*/
+static struct s3c_adc_mach_info s3c_adc_platform __initdata = {
+	/* Support 12-bit resolution */
+	.delay		= 0xff,
+	.presc 		= 49,
+	.resolution	= 12,
+};
+#endif
 
 /*
  * Platform devices
@@ -601,12 +844,10 @@ static struct platform_device *spica_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
-#if defined(CONFIG_I2C_GPIO)
-	&s3c_device_i2c3,
-	&s3c_device_i2c5,
-	&s3c_device_i2c6,
+	&spica_pmic_i2c,
+	&spica_audio_i2c,
+	&spica_touch_i2c,
 	&s3c_device_fb,
-#endif
 //	&s3c_device_spi0,
 //	&sec_device_ts,
 #ifdef CONFIG_S3C64XX_ADCTS
@@ -636,61 +877,26 @@ static struct platform_device *spica_devices[] __initdata = {
 #endif
 };
 
-static struct i2c_board_info i2c_devs0[] __initdata = {
-};
-
-static struct i2c_board_info i2c_devs1[] __initdata = {
-};
-
-#if 0 /*def CONFIG_S3C_ADC*/
-static struct s3c_adc_mach_info s3c_adc_platform __initdata = {
-	/* Support 12-bit resolution */
-	.delay		= 0xff,
-	.presc 		= 49,
-	.resolution	= 12,
-};
-#endif
-
 /*
- * Machine setup
+ * Extended I/O map
  */
 
-static void __init spica_fixup(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
-{
-	mi->nr_banks = 1;
+#define S3C64XX_IODESC(x) { \
+	(unsigned long)S3C64XX_VA_##x, \
+	__phys_to_pfn(S3C64XX_PA_##x), \
+	S3C64XX_SZ_##x, MT_DEVICE\
+	}
 
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].size = PHYS_UNRESERVED_SIZE;
-	mi->bank[0].node = 0;
-}
+static struct map_desc spica_iodesc[] __initdata = {
+	S3C64XX_IODESC(FB),
+	S3C64XX_IODESC(SROM),
+	S3C64XX_IODESC(HOSTIFA),
+	S3C64XX_IODESC(HOSTIFB),
+	S3C64XX_IODESC(ONENAND0),
+};
 
-static void __init spica_map_io(void)
-{
-	s3c64xx_init_io(spica_iodesc, ARRAY_SIZE(spica_iodesc));
-	s3c24xx_init_clocks(12000000);
-	s3c24xx_init_uarts(spica_uartcfgs, ARRAY_SIZE(spica_uartcfgs));
-}
-
-static void spica_set_qos(void) 
-{
-#if 0
-	u32 reg;     							 /* AXI sfr */     
-
-	reg = (u32) ioremap((unsigned long) S3C6410_PA_AXI_SYS, SZ_4K); /* QoS override: FIMD min. latency */
-	writel(0xffb6, S3C_VA_SYS + 0x128);  	    			/* AXI QoS */
-	writel(0x7, reg + 0x460);   					/* (8 - MFC ch.) */
-	writel(0x7ff7, reg + 0x464);      				/* Bus cacheable */
-	writel(0x8ff, S3C_VA_SYS + 0x838); 
-	
-	__raw_writel(0x0, S3C_AHB_CON0);
-	
-	iounmap(reg);
-#endif
-}
-
-/*
- *	Power Off Handler
+/* 
+ *	Power Off Handler (obsolete)
  */
 
 extern int get_usb_cable_state(void);
@@ -774,6 +980,10 @@ static void spica_pm_power_off(void)
 }
 #endif
 
+/*
+ * USB Transceiver (Obsolete)
+ */
+
 #if 0
 static void spica_ftm_enable_usb_sw(int mode)
 {
@@ -787,6 +997,10 @@ static void spica_ftm_enable_usb_sw(int mode)
 	}
 }
 #endif
+
+/*
+ * UART switch
+ */
 
 static int uart_current_owner = 0;
 
@@ -827,31 +1041,6 @@ static ssize_t uart_switch_store(struct device *dev, struct device_attribute *at
 
 static DEVICE_ATTR(uart_sel, S_IRUGO |S_IWUGO | S_IRUSR | S_IWUSR, uart_switch_show, uart_switch_store);
 
-static int spica_notifier_call(struct notifier_block *this, unsigned long code, void *_cmd)
-{
-	int	mode = REBOOT_MODE_NONE;
-
-	if ((code == SYS_RESTART) && _cmd) {
-		if (!strcmp((char *)_cmd, "arm11_fota"))
-			mode = REBOOT_MODE_ARM11_FOTA;
-		else if (!strcmp((char *)_cmd, "arm9_fota"))
-			mode = REBOOT_MODE_ARM9_FOTA;
-		else if (!strcmp((char *)_cmd, "recovery")) 
-			mode = REBOOT_MODE_RECOVERY;
-		else if (!strcmp((char *)_cmd, "download")) 
-			mode = REBOOT_MODE_DOWNLOAD;
-	}
-
-	if (sec_set_param_value)
-		sec_set_param_value(__REBOOT_MODE, &mode);
-	
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block spica_reboot_notifier = {
-	.notifier_call = spica_notifier_call,
-};
-
 static void spica_switch_init(void)
 {
 	sec_class = class_create(THIS_MODULE, "sec");
@@ -872,6 +1061,39 @@ static void spica_switch_init(void)
 	if (device_create_file(switch_dev, &dev_attr_uart_sel) < 0)
 		pr_err("Failed to create device file(%s)!\n", dev_attr_uart_sel.attr.name);
 };
+
+/*
+ * Reboot notification (for Android boot modes)
+ */
+
+static int spica_notifier_call(struct notifier_block *this, unsigned long code, void *_cmd)
+{
+	int mode = REBOOT_MODE_NONE;
+
+	if ((code == SYS_RESTART) && _cmd) {
+		if (!strcmp((char *)_cmd, "arm11_fota"))
+			mode = REBOOT_MODE_ARM11_FOTA;
+		else if (!strcmp((char *)_cmd, "arm9_fota"))
+			mode = REBOOT_MODE_ARM9_FOTA;
+		else if (!strcmp((char *)_cmd, "recovery")) 
+			mode = REBOOT_MODE_RECOVERY;
+		else if (!strcmp((char *)_cmd, "download")) 
+			mode = REBOOT_MODE_DOWNLOAD;
+
+		if (sec_set_param_value)
+			sec_set_param_value(__REBOOT_MODE, &mode);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block spica_reboot_notifier = {
+	.notifier_call = spica_notifier_call,
+};
+
+/*
+ * RTC support (obsolete)
+ */
 
 #if 0/* defined(CONFIG_RTC_DRV_S3C)*/
 /* RTC common Function for samsung APs*/
@@ -943,6 +1165,10 @@ void s3c_rtc_enable_set(struct platform_device *pdev,void __iomem *base, int en)
 }
 #endif
 
+/*
+ * Keypad support
+ */
+
 #if defined(CONFIG_KEYPAD_S3C) || defined (CONFIG_KEYPAD_S3C_MODULE)
 void s3c_setup_keypad_cfg_gpio(int rows, int columns)
 {
@@ -968,6 +1194,10 @@ void s3c_setup_keypad_cfg_gpio(int rows, int columns)
 
 EXPORT_SYMBOL(s3c_setup_keypad_cfg_gpio);
 #endif
+
+/*
+ * UART GPIO setup
+ */
 
 void s3c_setup_uart_cfg_gpio(unsigned char port)
 {
@@ -1382,12 +1612,43 @@ EXPORT_SYMBOL(s3c_config_wakeup_source);
  * Machine setup
  */
 
+static void __init spica_fixup(struct machine_desc *desc,
+		struct tag *tags, char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 1;
+
+	mi->bank[0].start = PHYS_OFFSET;
+	mi->bank[0].size = PHYS_UNRESERVED_SIZE;
+	mi->bank[0].node = 0;
+}
+
+static void __init spica_map_io(void)
+{
+	s3c64xx_init_io(spica_iodesc, ARRAY_SIZE(spica_iodesc));
+	s3c24xx_init_clocks(12000000);
+	s3c24xx_init_uarts(spica_uartcfgs, ARRAY_SIZE(spica_uartcfgs));
+}
+
+#if 0
+static void spica_set_qos(void) 
+{
+	u32 reg;     							 /* AXI sfr */     
+
+	reg = (u32) ioremap((unsigned long) S3C6410_PA_AXI_SYS, SZ_4K); /* QoS override: FIMD min. latency */
+	writel(0xffb6, S3C_VA_SYS + 0x128);  	    			/* AXI QoS */
+	writel(0x7, reg + 0x460);   					/* (8 - MFC ch.) */
+	writel(0x7ff7, reg + 0x464);      				/* Bus cacheable */
+	writel(0x8ff, S3C_VA_SYS + 0x838); 
+	
+	__raw_writel(0x0, S3C_AHB_CON0);
+	
+	iounmap(reg);
+}
+#endif
+
 static void __init spica_machine_init(void)
 {
 	s3c_init_gpio(spica_gpio_table, ARRAY_SIZE(spica_gpio_table));
-
-	s3c_i2c0_set_platdata(NULL);
-	s3c_i2c1_set_platdata(NULL);
 
 #ifdef CONFIG_S3C64XX_ADCTS
 //	s3c_adcts_set_platdata (&s3c_adcts_cfgs);
@@ -1398,25 +1659,36 @@ static void __init spica_machine_init(void)
 
 	s3c_fb_set_platdata(&spica_lcd_pdata);
 
-	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
-	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
-	
+	/* Register I2C devices */
+	s3c_i2c0_set_platdata(&spica_misc_i2c);
+	i2c_register_board_info(spica_misc_i2c.bus_num, spica_misc_i2c_devs,
+					ARRAY_SIZE(spica_misc_i2c_devs));
+	s3c_i2c1_set_platdata(&spica_cam_i2c);
+	i2c_register_board_info(spica_cam_i2c.bus_num, spica_cam_i2c_devs,
+					ARRAY_SIZE(spica_cam_i2c_devs));
+	i2c_register_board_info(spica_pmic_i2c.id, spica_pmic_i2c_devs,
+					ARRAY_SIZE(spica_pmic_i2c_devs));
+	i2c_register_board_info(spica_audio_i2c.id, spica_audio_i2c_devs,
+					ARRAY_SIZE(spica_audio_i2c_devs));
+	i2c_register_board_info(spica_touch_i2c.id, spica_touch_i2c_devs,
+					ARRAY_SIZE(spica_touch_i2c_devs));
+
+	/* Register SPI devices */
 	spi_register_board_info(spica_spi_board, ARRAY_SIZE(spica_spi_board));
 
+	/* Register platform devices */
 	platform_add_devices(spica_devices, ARRAY_SIZE(spica_devices));
+
 #ifdef CONFIG_ANDROID_PMEM
+	/* Register PMEM devices */
 	spica_add_mem_devices();
 #endif
+
 	//s3c6410_pm_init();
-
 	//spica_set_qos();
-
 	//pm_power_off = spica_pm_power_off;
-
 	register_reboot_notifier(&spica_reboot_notifier);
-
 	spica_switch_init();
-
 	//ftm_enable_usb_sw = spica_ftm_enable_usb_sw;
 }
 

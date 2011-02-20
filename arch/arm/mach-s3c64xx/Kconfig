@@ -237,6 +237,7 @@ config MACH_SPICA
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_FB_24BPP
 	select HAVE_PWM
+	select I2C_GPIO
 	help
 	  Machine support for the Samsung SPICA
 
