@@ -71,6 +71,7 @@
 #include <mach/system.h>
 #include <mach/s3c64xxfb.h>
 #include <video/s6d05a.h>
+#include <mach/regs-lcd.h>
 
 struct class *sec_class;
 EXPORT_SYMBOL(sec_class);
@@ -516,7 +517,7 @@ struct s3c64xxfb_platform_data spica_s3cfb_pdata = {
 	.vidcon1	= S3C_VIDCON1_IVCLK_RISE_EDGE
 			| S3C_VIDCON1_IHSYNC_INVERT
 			| S3C_VIDCON1_IVSYNC_INVERT
-			| S3C_VIDCON1_IVDEN_NORMAL;
+			| S3C_VIDCON1_IVDEN_NORMAL,
 	/* Refresh rate */
 	.refresh_rate	= 60,
 	/* Boot logo */
