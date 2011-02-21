@@ -243,6 +243,10 @@ static struct regulator_init_data spica_ldo5_data = {
 	},
 };
 
+static struct regulator_consumer_supply ldo6_consumer[] = {
+	{	.supply	= "lcd_vdd3", },
+};
+
 static struct regulator_init_data spica_ldo6_data = {
 	.constraints	= {
 		.name		= "VLCD_1.8V",
@@ -254,10 +258,12 @@ static struct regulator_init_data spica_ldo6_data = {
 			.disabled = 1,
 		},
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(ldo6_consumer),
+	.consumer_supplies	= ldo6_consumer,
 };
 
 static struct regulator_consumer_supply ldo7_consumer[] = {
-	{	.supply	= "vlcd", },
+	{	.supply	= "lcd_vci", },
 };
 
 static struct regulator_init_data spica_ldo7_data = {
@@ -310,24 +316,20 @@ static struct regulator_consumer_supply buck1_consumer[] = {
 
 static struct regulator_init_data spica_buck1_data = {
 	.constraints	= {
-		.name		= "VDD_ARM",
+		.name		= "VAP_ARM",
 		.min_uV		= 750000,
 		.max_uV		= 1500000,
 		.apply_uV	= 1,
 		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
 				  REGULATOR_CHANGE_STATUS,
 		.state_mem	= {
-			.uV	= 1250000,
+			.uV	= 1200000,
 			.mode	= REGULATOR_MODE_NORMAL,
 			.disabled = 1,
 		},
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(buck1_consumer),
 	.consumer_supplies	= buck1_consumer,
-};
-
-static struct regulator_consumer_supply buck2_consumer[] = {
-	{	.supply	= "vddint", },
 };
 
 static struct regulator_init_data spica_buck2_data = {
@@ -343,8 +345,6 @@ static struct regulator_init_data spica_buck2_data = {
 			.disabled = 1,
 		},
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(buck2_consumer),
-	.consumer_supplies	= buck2_consumer,
 };
 
 static struct regulator_init_data spica_buck3_data = {
@@ -780,25 +780,10 @@ static struct platform_device spica_spi_lcd = {
 	},
 };
 
-static void spica_lcd_set_power(int power)
-{
-	if (power) {
-		// Fixup for leakage current elimination hack
-		gpio_set_value(GPIO_LCD_CS_N, 1);
-
-		// Configure PMIC here
-	} else {
-		// Configure PMIC here
-
-		// Hack to eliminate leakage current
-		gpio_set_value(GPIO_LCD_SCLK, 0);
-		gpio_set_value(GPIO_LCD_CS_N, 0);
-	}
-}
-
 struct s6d05a_platform_data spica_s6d05a_pdata = {
 	.reset_gpio	= GPIO_LCD_RST_N,
-	.set_power	= spica_lcd_set_power,
+	.vci_regulator	= "lcd_vci",
+	.vdd3_regulator	= "lcd_vdd3",
 };
 
 static struct spi_board_info spica_spi_board[] = {
