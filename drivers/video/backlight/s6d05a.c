@@ -15,6 +15,7 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 #include <linux/backlight.h>
+#include <linux/regulator/consumer.h>
 
 #include <video/s6d05a.h>
 
@@ -37,7 +38,8 @@ struct s6d05a_data {
 	struct backlight_device	*bl;
 
 	unsigned reset_gpio;
-	void (*set_power)(int);
+	struct regulator *vdd3;
+	struct regulator *vci;
 
 	int state;
 	int brightness;
@@ -143,19 +145,19 @@ static void s6d05a_set_power(struct s6d05a_data *data, int power)
 	if (power) {
 		/* Power On Sequence */
 
-		/* Power Enable */
-		data->set_power(1);
-
-		// wait longer than 1ms
-		msleep(2);
-
-		/* Make sure reset isn't asserted for at least 1 ms */
-		gpio_set_value(data->reset_gpio, 1);
-		msleep(1);
-
-		/* Assert reset for at least 1 ms (> 10 us) */
+		/* Assert reset */
 		gpio_set_value(data->reset_gpio, 0);
-		msleep(1);
+		udelay(10);
+
+		/* Enable VCI if needed */
+		if (data->vci)
+			regulator_enable(data->vci);
+		udelay(10);
+
+		/* Enable VDD3 if needed */
+		if (data->vdd3)
+			regulator_enable(data->vdd3);
+		udelay(10);
 
 		/* Release reset */
 		gpio_set_value(data->reset_gpio, 1);
@@ -176,8 +178,14 @@ static void s6d05a_set_power(struct s6d05a_data *data, int power)
 		/* Reset Assert */
 		gpio_set_value(data->reset_gpio, 0);
 
-		/* Disable power */
-		data->set_power(0);
+
+		/* Disable VDD3 if possible */
+		if (data->vdd3)
+			regulator_disable(data->vdd3);
+
+		/* Disable VCI if possible */
+		if (data->vci)
+			regulator_disable(data->vci);
 	}
 
 	data->state = power;
@@ -239,9 +247,10 @@ static int __devinit s6d05a_probe(struct spi_device *spi)
 	struct s6d05a_data *data;
 	struct s6d05a_platform_data *pdata = spi->dev.platform_data;
 	struct backlight_device *bl;
+	struct regulator *vdd3, *vci;
 	int ret = 0;
 
-	if (!pdata || !pdata->set_power)
+	if (!pdata)
 		return -ENOENT;
 
 	/* Configure GPIO */
@@ -271,7 +280,6 @@ static int __devinit s6d05a_probe(struct spi_device *spi)
 	}
 
 	/* Set up driver data */
-	data->set_power = pdata->set_power;
 	data->reset_gpio = pdata->reset_gpio;
 	data->spi = spi;
 	data->bl = bl;
@@ -290,6 +298,18 @@ static int __devinit s6d05a_probe(struct spi_device *spi)
 	if (pdata->power_off_seq) {
 		data->power_off_seq = pdata->power_off_seq;
 		data->power_off_seq_len = pdata->power_off_seq_len;
+	}
+	
+	if (pdata->vci_regulator) {
+		vci = regulator_get(&spi->dev, pdata->vci_regulator);
+		if (!IS_ERR(vci))
+			data->vci = vci;
+	}
+	
+	if (pdata->vdd3_regulator) {
+		vdd3 = regulator_get(&spi->dev, pdata->vdd3_regulator);
+		if (!IS_ERR(vdd3))
+			data->vdd3 = vdd3;
 	}
 
 	dev_set_drvdata(&spi->dev, data);
@@ -315,6 +335,10 @@ static int __devexit s6d05a_remove(struct spi_device *spi)
 	s6d05a_set_power(data, 0);
 	backlight_device_unregister(data->bl);
 	gpio_free(data->reset_gpio);
+	if (data->vci)
+		regulator_put(data->vci);
+	if (data->vdd3)
+		regulator_put(data->vdd3);
 	kfree(data);
 
 	return 0;

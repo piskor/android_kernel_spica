@@ -49,9 +49,10 @@ struct s6d05a_command {
 
 /* Platform data */
 struct s6d05a_platform_data {
-	/* Required: Reset GPIO and power control function */
+	/* Required: Reset GPIO and power regulators */
 	unsigned reset_gpio;
-	void (*set_power)(int);
+	const char *vci_regulator;
+	const char *vdd3_regulator;
 
 	/* Optional: override of power on command sequence */
 	struct s6d05a_command *power_on_seq;
