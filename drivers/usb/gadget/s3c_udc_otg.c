@@ -21,7 +21,7 @@
  *
  */
 
-#define DEBUG
+//#define DEBUG
 
 #include "s3c_udc.h"
 #include <linux/platform_device.h>
@@ -46,12 +46,12 @@
 #undef DEBUG_S3C_UDC_OUT_EP
 #undef DEBUG_S3C_UDC_IN_EP
 #undef DEBUG_S3C_UDC
-#define DEBUG_S3C_UDC_SETUP
-#define DEBUG_S3C_UDC_EP0
+//#define DEBUG_S3C_UDC_SETUP
+//#define DEBUG_S3C_UDC_EP0
 //#define DEBUG_S3C_UDC_ISR
-#define DEBUG_S3C_UDC_OUT_EP
-#define DEBUG_S3C_UDC_IN_EP
-#define DEBUG_S3C_UDC
+//#define DEBUG_S3C_UDC_OUT_EP
+//#define DEBUG_S3C_UDC_IN_EP
+//#define DEBUG_S3C_UDC
 
 #define EP0_CON		0
 #define EP1_OUT		1
@@ -529,6 +529,8 @@ static void reconfig_usbd(void)
 #endif
 	unsigned int uTemp;
 	writel(CORE_SOFT_RESET, S3C_UDC_OTG_GRSTCTL);
+	
+	udelay(50);
 
 	writel(0<<15		/* PHY Low Power Clock sel*/
 		|1<<14		/* Non-Periodic TxFIFO Rewind Enable*/

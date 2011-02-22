@@ -413,7 +413,7 @@ static irqreturn_t s3c_udc_irq(int irq, void *_dev)
 	intr_status = readl(S3C_UDC_OTG_GINTSTS);
 	gintmsk = readl(S3C_UDC_OTG_GINTMSK);
 
-	DEBUG_ISR("\n*** %s : GINTSTS=0x%x(on state %s), GINTMSK : 0x%x, DAINT : 0x%x, DAINTMSK : 0x%x\n",
+	DEBUG_ISR("*** %s : GINTSTS=0x%x(on state %s), GINTMSK : 0x%x, DAINT : 0x%x, DAINTMSK : 0x%x\n",
 			__func__, intr_status, state_names[dev->ep0state], gintmsk,
 			readl(S3C_UDC_OTG_DAINT), readl(S3C_UDC_OTG_DAINTMSK));
 
@@ -423,7 +423,7 @@ static irqreturn_t s3c_udc_irq(int irq, void *_dev)
 	}
 
 	if (intr_status & INT_ENUMDONE) {
-		DEBUG_ISR("\tSpeed Detection interrupt\n");
+//		DEBUG_ISR("\tSpeed Detection interrupt\n");
 
 		writel(INT_ENUMDONE, S3C_UDC_OTG_GINTSTS);
 		usb_status = (readl(S3C_UDC_OTG_DSTS) & 0x6);
